@@ -1,3 +1,5 @@
+import glob
+import os
 import cv2 as cv
 import numpy as np
 
@@ -86,55 +88,23 @@ def process_frame(frame):
     upper_hsv = np.array([52, 255, 134])
     masked_frame, mask = apply_mask(frame_resized, lower_hsv, upper_hsv)
 
-    # Display the masked image
-    cv.imshow("Masked", masked_frame)
-    cv.waitKey(0)
-
     # Preprocess the masked image
     blurred = preprocess_image(masked_frame)
     edges = detect_edges(blurred)
 
-    # Display the edges
-    cv.imshow("Edges", edges)
-    cv.waitKey(0)
-
     max_contour = find_largest_contour(edges)
-
-    # Draw the largest contour on the original image
-    contour_image = frame_resized.copy()
-    cv.drawContours(contour_image, [max_contour], -1, (0, 255, 0), 3)
-    cv.imshow("Contour", contour_image)
-    cv.waitKey(0)
 
     warped = get_perspective_transform(
         frame_resized, max_contour, width, height)
     if warped is not None:
-        # Display the warped image
-        resized_warped = cv.resize(warped, (640, 480))
-        cv.imshow("Warped", resized_warped)
-        cv.waitKey(0)
-
         # Apply masking with specified HSV values on the warped image
         lower_hsv_warped = np.array([0, 0, 0])
         upper_hsv_warped = np.array([90, 130, 255])
         masked_warped, mask_warped = apply_mask(
             warped, lower_hsv_warped, upper_hsv_warped)
 
-        # Display the masked warped image
-        resized_masked_warped = cv.resize(masked_warped, (640, 480))
-        cv.imshow("Masked Warped", resized_masked_warped)
-        cv.waitKey(0)
-
         # Find squares in the mask of the warped image
         squares = find_squares(mask_warped)
-
-        # Draw squares on the warped image
-        for (x, y, w, h) in squares:
-            cv.rectangle(warped, (x, y), (x + w, y + h), (0, 255, 0), 2)
-
-        resized_warped_with_squares = cv.resize(warped, (640, 480))
-        cv.imshow("Squares Warped", resized_warped_with_squares)
-        cv.waitKey(0)
 
         # Find corners of the largest square
         top_left, top_right, bottom_left, bottom_right = find_corners(squares)
@@ -151,21 +121,30 @@ def process_frame(frame):
         further_warped = get_perspective_transform(
             warped, new_contour, width, height)
         if further_warped is not None:
-            # Display the further warped image
-            resized_further_warped = cv.resize(further_warped, (640, 480))
-            cv.imshow("Further Warped", resized_further_warped)
-            cv.waitKey(0)
+            return further_warped
         else:
             print("Could not find a valid perspective transform for the warped image.")
+            return None
     else:
         print("Could not find a valid perspective transform.")
+        return None
 
-    cv.destroyAllWindows()
+
+def process_image(image_path, output_folder):
+    frame = cv.imread(image_path)
+    result = process_frame(frame)
+    if result is not None:
+        output_path = os.path.join(output_folder, os.path.basename(image_path))
+        cv.imwrite(output_path, result)
 
 
 def main():
-    frame = cv.imread("antrenare/1_03.jpg")
-    process_frame(frame)
+    input_folder = "antrenare"
+    output_folder = "warped_images"
+    os.makedirs(output_folder, exist_ok=True)
+    image_paths = glob.glob(os.path.join(input_folder, "*.jpg"))
+    for image_path in image_paths:
+        process_image(image_path, output_folder)
 
 
 if __name__ == "__main__":
