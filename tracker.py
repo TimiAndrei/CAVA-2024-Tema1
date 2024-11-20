@@ -75,8 +75,7 @@ def find_corners(squares):
     return top_left, top_right, bottom_left, bottom_right
 
 
-def main():
-    frame = cv.imread("antrenare/1_01.jpg")
+def process_frame(frame):
     width, height = 2040, 2040
 
     # Resize the frame for easier processing
@@ -162,6 +161,11 @@ def main():
         print("Could not find a valid perspective transform.")
 
     cv.destroyAllWindows()
+
+
+def main():
+    frame = cv.imread("antrenare/1_03.jpg")
+    process_frame(frame)
 
 
 if __name__ == "__main__":
