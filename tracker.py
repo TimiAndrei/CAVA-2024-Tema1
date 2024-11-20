@@ -46,20 +46,6 @@ def get_perspective_transform(frame, contour, width, height):
         return None
 
 
-def divide_grid(warped, width, height):
-    cell_width = width // 9
-    cell_height = height // 9
-    cells = []
-    for i in range(9):
-        row = []
-        for j in range(9):
-            cell = warped[i*cell_height:(i+1)*cell_height,
-                          j*cell_width:(j+1)*cell_width]
-            row.append(cell)
-        cells.append(row)
-    return cells
-
-
 def apply_mask(frame, lower_hsv, upper_hsv):
     frame_hsv = cv.cvtColor(frame, cv.COLOR_BGR2HSV)
     mask = cv.inRange(frame_hsv, lower_hsv, upper_hsv)
@@ -67,44 +53,31 @@ def apply_mask(frame, lower_hsv, upper_hsv):
     return result, mask
 
 
-def adjust_mask_with_trackbar(warped):
-    def nothing(x):
-        pass
+def find_squares(mask):
+    contours, _ = cv.findContours(
+        mask, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
+    squares = []
+    for contour in contours:
+        x, y, w, h = cv.boundingRect(contour)
+        aspect_ratio = w / float(h)
+        area = cv.contourArea(contour)
+        # Aspect ratio close to 1 and area bigger than 50x50
+        if 0.95 <= aspect_ratio <= 1.05 and 2500 <= area:
+            squares.append((x, y, w, h))
+    return squares
 
-    cv.namedWindow("Trackbar")
-    cv.createTrackbar("LH", "Trackbar", 0, 255, nothing)
-    cv.createTrackbar("LS", "Trackbar", 0, 255, nothing)
-    cv.createTrackbar("LV", "Trackbar", 0, 255, nothing)
-    cv.createTrackbar("UH", "Trackbar", 255, 255, nothing)
-    cv.createTrackbar("US", "Trackbar", 255, 255, nothing)
-    cv.createTrackbar("UV", "Trackbar", 255, 255, nothing)
 
-    while True:
-        l_h = cv.getTrackbarPos("LH", "Trackbar")
-        l_s = cv.getTrackbarPos("LS", "Trackbar")
-        l_v = cv.getTrackbarPos("LV", "Trackbar")
-        u_h = cv.getTrackbarPos("UH", "Trackbar")
-        u_s = cv.getTrackbarPos("US", "Trackbar")
-        u_v = cv.getTrackbarPos("UV", "Trackbar")
-
-        lower_hsv = np.array([l_h, l_s, l_v])
-        upper_hsv = np.array([u_h, u_s, u_v])
-
-        masked_frame, mask = apply_mask(warped, lower_hsv, upper_hsv)
-
-        cv.imshow("Warped", warped)
-        cv.imshow("Mask", mask)
-        cv.imshow("Masked Frame", masked_frame)
-
-        if cv.waitKey(25) & 0xFF == ord('q'):
-            break
-
-    cv.destroyAllWindows()
+def find_corners(squares):
+    top_left = min(squares, key=lambda s: s[0] + s[1])
+    top_right = max(squares, key=lambda s: s[0] - s[1])
+    bottom_left = min(squares, key=lambda s: s[0] - s[1])
+    bottom_right = max(squares, key=lambda s: s[0] + s[1])
+    return top_left, top_right, bottom_left, bottom_right
 
 
 def main():
     frame = cv.imread("antrenare/1_01.jpg")
-    width, height = 810, 810
+    width, height = 2040, 2040
 
     # Resize the frame for easier processing
     frame_resized = cv.resize(frame, (1024, 768))
@@ -137,8 +110,54 @@ def main():
     warped = get_perspective_transform(
         frame_resized, max_contour, width, height)
     if warped is not None:
-        # Adjust mask on the warped image
-        adjust_mask_with_trackbar(warped)
+        # Display the warped image
+        resized_warped = cv.resize(warped, (640, 480))
+        cv.imshow("Warped", resized_warped)
+        cv.waitKey(0)
+
+        # Apply masking with specified HSV values on the warped image
+        lower_hsv_warped = np.array([0, 0, 0])
+        upper_hsv_warped = np.array([90, 130, 255])
+        masked_warped, mask_warped = apply_mask(
+            warped, lower_hsv_warped, upper_hsv_warped)
+
+        # Display the masked warped image
+        resized_masked_warped = cv.resize(masked_warped, (640, 480))
+        cv.imshow("Masked Warped", resized_masked_warped)
+        cv.waitKey(0)
+
+        # Find squares in the mask of the warped image
+        squares = find_squares(mask_warped)
+
+        # Draw squares on the warped image
+        for (x, y, w, h) in squares:
+            cv.rectangle(warped, (x, y), (x + w, y + h), (0, 255, 0), 2)
+
+        resized_warped_with_squares = cv.resize(warped, (640, 480))
+        cv.imshow("Squares Warped", resized_warped_with_squares)
+        cv.waitKey(0)
+
+        # Find corners of the largest square
+        top_left, top_right, bottom_left, bottom_right = find_corners(squares)
+
+        # Define the new contour for the further warped image
+        new_contour = np.array([
+            [top_left[0], top_left[1]],
+            [top_right[0] + top_right[2], top_right[1]],
+            [bottom_right[0] + bottom_right[2], bottom_right[1] + bottom_right[3]],
+            [bottom_left[0], bottom_left[1] + bottom_left[3]]
+        ], dtype="float32")
+
+        # Get perspective transform and warp the image again
+        further_warped = get_perspective_transform(
+            warped, new_contour, width, height)
+        if further_warped is not None:
+            # Display the further warped image
+            resized_further_warped = cv.resize(further_warped, (640, 480))
+            cv.imshow("Further Warped", resized_further_warped)
+            cv.waitKey(0)
+        else:
+            print("Could not find a valid perspective transform for the warped image.")
     else:
         print("Could not find a valid perspective transform.")
 
