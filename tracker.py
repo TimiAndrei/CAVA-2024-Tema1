@@ -76,6 +76,18 @@ def find_corners(squares):
     bottom_right = max(squares, key=lambda s: s[0] + s[1])
     return top_left, top_right, bottom_left, bottom_right
 
+def zoom_image(image, zoom_factor):
+    height, width = image.shape[:2]
+    new_width = int(width * zoom_factor)
+    new_height = int(height * zoom_factor)
+    zoomed_image = cv.resize(image, (new_width, new_height))
+
+    # Crop the center of the zoomed image to maintain the original dimensions
+    start_x = (new_width - width) // 2
+    start_y = (new_height - height) // 2
+    cropped_image = zoomed_image[start_y:start_y + height, start_x:start_x + width]
+    return cropped_image
+
 
 def process_frame(frame):
     width, height = 2040, 2040
@@ -84,8 +96,8 @@ def process_frame(frame):
     frame_resized = cv.resize(frame, (1024, 768))
 
     # Apply masking
-    lower_hsv = np.array([0, 140, 0])
-    upper_hsv = np.array([52, 255, 134])
+    lower_hsv = np.array([0, 0, 0])
+    upper_hsv = np.array([90, 255, 255])
     masked_frame, mask = apply_mask(frame_resized, lower_hsv, upper_hsv)
 
     # Preprocess the masked image
@@ -94,16 +106,17 @@ def process_frame(frame):
 
     max_contour = find_largest_contour(edges)
 
-    warped = get_perspective_transform(
-        frame_resized, max_contour, width, height)
+    warped = get_perspective_transform(frame_resized, max_contour, width, height)
     if warped is not None:
-        # Apply masking with specified HSV values on the warped image
+        # Zoom the warped image by 20%
+        zoomed_warped = zoom_image(warped, 1.2)
+
+        # Apply masking with specified HSV values on the zoomed warped image
         lower_hsv_warped = np.array([0, 0, 0])
         upper_hsv_warped = np.array([90, 130, 255])
-        masked_warped, mask_warped = apply_mask(
-            warped, lower_hsv_warped, upper_hsv_warped)
+        masked_warped, mask_warped = apply_mask(zoomed_warped, lower_hsv_warped, upper_hsv_warped)
 
-        # Find squares in the mask of the warped image
+        # Find squares in the mask of the zoomed warped image
         squares = find_squares(mask_warped)
 
         # Find corners of the largest square
@@ -118,8 +131,7 @@ def process_frame(frame):
         ], dtype="float32")
 
         # Get perspective transform and warp the image again
-        further_warped = get_perspective_transform(
-            warped, new_contour, width, height)
+        further_warped = get_perspective_transform(zoomed_warped, new_contour, width, height)
         if further_warped is not None:
             return further_warped
         else:
@@ -131,6 +143,7 @@ def process_frame(frame):
 
 
 def process_image(image_path, output_folder):
+    print(f"Processing {image_path}")
     frame = cv.imread(image_path)
     result = process_frame(frame)
     if result is not None:
