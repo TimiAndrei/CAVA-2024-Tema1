@@ -133,26 +133,12 @@ def process_frame(frame, reference_frame1, previous_frame, output_folder, frame_
                 # Compare with the previous frame for subsequent images
                 diff = cv.absdiff(further_warped, previous_frame)
 
-            # Convert to grayscale and threshold
-            gray_diff = cv.cvtColor(diff, cv.COLOR_BGR2GRAY)
-            _, binary_diff = cv.threshold(gray_diff, 30, 255, cv.THRESH_BINARY)
-
-            # save the differences
-            diff_output_path = os.path.join(output_folder, f"diff_{frame_count:02d}.jpg")
-            cv.imwrite(diff_output_path, binary_diff)
-
-            # convert to binary_diff to bgr
-            binary_diff_bgr = cv.cvtColor(binary_diff, cv.COLOR_GRAY2BGR)
-            diff_output_path = os.path.join(output_folder, f"diff_{frame_count:02d}_color.jpg")
-            cv.imwrite(diff_output_path, binary_diff_bgr)
-
-            # save the differences with color
-            binary_diff_color = cv.bitwise_and(further_warped, binary_diff_bgr)
-            diff_output_path = os.path.join(output_folder, f"diff_{frame_count:02d}_color2.jpg")
-            cv.imwrite(diff_output_path, binary_diff_color)
+            # save the diff
+            diff_output_path = os.path.join(output_folder, f"diff_{frame_count:04d}.jpg")
+            cv.imwrite(diff_output_path, diff)
 
             # Extract the differences
-            contours, _ = cv.findContours(binary_diff, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
+            contours, _ = cv.findContours(diff, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
             for i, contour in enumerate(contours):
                 x, y, w, h = cv.boundingRect(contour)
                 aspect_ratio = w / float(h)
@@ -180,7 +166,7 @@ def process_image(image_path, reference_frame1= None, previous_frame = None, out
 
 def main():
     input_folder = "antrenare"
-    output_folder = "warped_images"
+    output_folder = "warped_images_2"
     os.makedirs(output_folder, exist_ok=True)
 
     # Preprocess and warp reference frames
@@ -193,9 +179,7 @@ def main():
     previous_frame = None
     image_paths = glob.glob(os.path.join(input_folder, "*.jpg"))
     for frame_count, image_path in enumerate(image_paths):
-        if frame_count == 0:
-            continue
-        adjusted_frame_count = (frame_count - 1) % 50 + 1
+        adjusted_frame_count = frame_count % 50 + 1
         previous_frame = process_image(image_path, reference_frame_warped, previous_frame, output_folder, adjusted_frame_count)
 
 if __name__ == "__main__":
