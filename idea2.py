@@ -151,20 +151,30 @@ def compare_and_extract_pieces(current_frame, previous_frame, output_folder, ima
 
             if diff_sum > max_diff:
                 max_diff = diff_sum
-                max_diff_cell = (x_start, y_start, x_end, y_end)
+                max_diff_cell = (x_start, y_start, x_end, y_end, i, j)
 
     if max_diff_cell:
-        x_start, y_start, x_end, y_end = max_diff_cell
+        x_start, y_start, x_end, y_end, row, col = max_diff_cell
         piece = current_frame[y_start:y_end, x_start:x_end]
-        piece_output_path = os.path.join(output_folder, f"piece_{image_name}")
+        piece_output_path = os.path.join(output_folder, f"piece_{image_name}.jpg")
         cv.imwrite(piece_output_path, piece)
+
+        # Determine the grid position
+        col_letter = chr(ord('A') + col)
+        row_number = row + 1
+        position = f"{row_number}{col_letter}"
+
+        # Write the position to a text file
+        text_output_path = os.path.join(output_folder, f"piece_{image_name}.txt")
+        with open(text_output_path, 'w') as f:
+            f.write(position)
 
 def process_image(image_path, previous_frame, output_folder):
     print(f"Processing {image_path}")
     frame = cv.imread(image_path)
     warped_frame = process_frame(frame)
     if warped_frame is not None:
-        image_name = os.path.basename(image_path)
+        image_name = os.path.splitext(os.path.basename(image_path))[0]
         if previous_frame is not None:
             compare_and_extract_pieces(warped_frame, previous_frame, output_folder, image_name)
     return warped_frame
