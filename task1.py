@@ -177,9 +177,6 @@ def compare_and_extract_pieces(current_frame, previous_frame, output_folder, ima
     if max_diff_cell:
         x_start, y_start, x_end, y_end, row, col = max_diff_cell
         piece = current_frame[y_start:y_end, x_start:x_end]
-        piece_output_path = os.path.join(
-            output_folder, f"piece_{image_name}.jpg")
-        cv.imwrite(piece_output_path, piece)
 
         # Determine the grid position
         col_letter = chr(ord('A') + col)
@@ -255,7 +252,7 @@ def generate_templates():
 
 def generate_warped_images():
     input_folder = "antrenare"
-    output_folder = "new_try"
+    output_folder = "new_try2"
     os.makedirs(output_folder, exist_ok=True)
 
     # Load and process the empty board

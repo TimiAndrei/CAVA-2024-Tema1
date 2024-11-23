@@ -77,8 +77,6 @@ def classify_number(template, image):
             image.shape[0] / template.shape[0], image.shape[1] / template.shape[1])
         template = cv.resize(template, (int(template.shape[1] * scale_factor), int(
             template.shape[0] * scale_factor)), interpolation=cv.INTER_AREA)
-
-    print(f"Template size: {template.shape}, Image size: {image.shape}")
     result = cv.matchTemplate(image, template, cv.TM_CCOEFF_NORMED)
     _, max_val, _, _ = cv.minMaxLoc(result)
     return max_val
