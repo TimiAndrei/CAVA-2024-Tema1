@@ -5,13 +5,23 @@ import os
 
 def detect_bounding_box(image):
     gray = cv.cvtColor(image, cv.COLOR_BGR2GRAY)
-    blurred = cv.GaussianBlur(gray, (5, 5), 0)
-    edges = cv.Canny(blurred, 50, 150)
+    _, thresh = cv.threshold(gray, 50, 255, cv.THRESH_BINARY_INV)
+
+    kernel = np.ones((5, 5), np.uint8)
+    morph = cv.morphologyEx(thresh, cv.MORPH_CLOSE, kernel)
+
     contours, _ = cv.findContours(
-        edges, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
+        morph, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
     if contours:
-        max_contour = max(contours, key=cv.contourArea)
-        x, y, w, h = cv.boundingRect(max_contour)
+        x_min, y_min = np.inf, np.inf
+        x_max, y_max = -np.inf, -np.inf
+        for contour in contours:
+            x, y, w, h = cv.boundingRect(contour)
+            x_min = min(x_min, x)
+            y_min = min(y_min, y)
+            x_max = max(x_max, x + w)
+            y_max = max(y_max, y + h)
+        x, y, w, h = x_min, y_min, x_max - x_min, y_max - y_min
         return x, y, w, h
     return None
 
