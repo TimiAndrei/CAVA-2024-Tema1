@@ -67,30 +67,33 @@ def get_centered_crop(image, bbox, size=(120, 120)):
     if cropped.shape[0] != size[0] or cropped.shape[1] != size[1]:
         cropped = cv.resize(cropped, size, interpolation=cv.INTER_AREA)
 
-    return cropped
+    # Convert to grayscale
+    cropped_gray = cv.cvtColor(cropped, cv.COLOR_BGR2GRAY)
+
+    # Apply a binary threshold to create a binary image with black digits and white background
+    _, binary_image = cv.threshold(
+        cropped_gray, 110, 255, cv.THRESH_BINARY_INV)
+
+    # Create a mask where white pixels are set to zero (transparent)
+    mask = binary_image == 255
+
+    # Apply the mask to keep only the black pixels
+    result = np.zeros_like(binary_image)
+    result[mask] = binary_image[mask]
+
+    return result
 
 
 def classify_number(template, image):
-    # Initialize the ORB detector
-    orb = cv.ORB_create()
-
-    # Detect keypoints and descriptors
-    kp1, des1 = orb.detectAndCompute(template, None)
-    kp2, des2 = orb.detectAndCompute(image, None)
-
-    # Initialize the BFMatcher
-    bf = cv.BFMatcher(cv.NORM_HAMMING, crossCheck=True)
-
-    # Match descriptors
-    matches = bf.match(des1, des2)
-
-    # Sort matches by distance
-    matches = sorted(matches, key=lambda x: x.distance)
-
-    # Calculate the score as the sum of distances of the best matches
-    score = sum(match.distance for match in matches)
-
-    return score
+    # Ensure the template is not larger than the image
+    if template.shape[0] > image.shape[0] or template.shape[1] > image.shape[1]:
+        scale_factor = min(
+            image.shape[0] / template.shape[0], image.shape[1] / template.shape[1])
+        template = cv.resize(template, (int(template.shape[1] * scale_factor), int(
+            template.shape[0] * scale_factor)), interpolation=cv.INTER_AREA)
+    result = cv.matchTemplate(image, template, cv.TM_CCOEFF_NORMED)
+    _, max_val, _, _ = cv.minMaxLoc(result)
+    return max_val
 
 
 def process_and_classify(image, templates, size=(120, 120)):
