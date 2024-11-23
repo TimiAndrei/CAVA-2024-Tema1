@@ -50,6 +50,25 @@ def detect_bounding_box(image):
     return None
 
 
+# def get_centered_crop(image, bbox, size=(120, 120)):
+#     x, y, w, h = bbox
+#     center_x = x + w // 2
+#     center_y = y + h // 2
+
+#     # Calculate the crop coordinates
+#     crop_x = max(0, center_x - size[0] // 2)
+#     crop_y = max(0, center_y - size[1] // 2)
+#     crop_x_end = min(image.shape[1], crop_x + size[0])
+#     crop_y_end = min(image.shape[0], crop_y + size[1])
+
+#     cropped = image[crop_y:crop_y_end, crop_x:crop_x_end]
+
+#     # Ensure the cropped image is of the expected size
+#     if cropped.shape[0] != size[0] or cropped.shape[1] != size[1]:
+#         cropped = cv.resize(cropped, size, interpolation=cv.INTER_AREA)
+
+#     return cropped
+
 def get_centered_crop(image, bbox, size=(120, 120)):
     x, y, w, h = bbox
     center_x = x + w // 2
@@ -67,7 +86,45 @@ def get_centered_crop(image, bbox, size=(120, 120)):
     if cropped.shape[0] != size[0] or cropped.shape[1] != size[1]:
         cropped = cv.resize(cropped, size, interpolation=cv.INTER_AREA)
 
-    return cropped
+    # Convert to grayscale
+    cropped_gray = cv.cvtColor(cropped, cv.COLOR_BGR2GRAY)
+
+    # Threshold to extract black pixels
+    _, thresh = cv.threshold(cropped_gray, 50, 255, cv.THRESH_BINARY_INV)
+
+    # Normalize the image by inverting the colors
+    normalized = cv.bitwise_not(thresh)
+
+    return normalized
+
+# def classify_number(template, image):
+#     # Ensure the template is not larger than the image
+#     if template.shape[0] > image.shape[0] or template.shape[1] > image.shape[1]:
+#         scale_factor = min(
+#             image.shape[0] / template.shape[0], image.shape[1] / template.shape[1])
+#         template = cv.resize(template, (int(template.shape[1] * scale_factor), int(
+#             template.shape[0] * scale_factor)), interpolation=cv.INTER_AREA)
+#     result = cv.matchTemplate(image, template, cv.TM_CCOEFF_NORMED)
+#     _, max_val, _, _ = cv.minMaxLoc(result)
+#     return max_val
+
+# def process_and_classify(image, templates, size=(120, 120)):
+#     bbox = detect_bounding_box(image)
+#     if bbox:
+#         cropped_image = get_centered_crop(image, bbox, size)
+#         best_match = None
+#         best_score = -1
+#         for template, filename in templates:
+#             template_bbox = detect_bounding_box(template)
+#             if template_bbox:
+#                 cropped_template = get_centered_crop(
+#                     template, template_bbox, size)
+#                 score = classify_number(cropped_template, cropped_image)
+#                 if score > best_score:
+#                     best_score = score
+#                     best_match = filename
+#         return best_match, best_score
+#     return None, None
 
 
 def classify_number(template, image):
@@ -77,9 +134,17 @@ def classify_number(template, image):
             image.shape[0] / template.shape[0], image.shape[1] / template.shape[1])
         template = cv.resize(template, (int(template.shape[1] * scale_factor), int(
             template.shape[0] * scale_factor)), interpolation=cv.INTER_AREA)
-    result = cv.matchTemplate(image, template, cv.TM_CCOEFF_NORMED)
-    _, max_val, _, _ = cv.minMaxLoc(result)
-    return max_val
+
+    # Resize the image to match the template size if necessary
+    if template.shape != image.shape:
+        image = cv.resize(
+            image, (template.shape[1], template.shape[0]), interpolation=cv.INTER_AREA)
+
+    # Compute the absolute difference
+    diff = cv.absdiff(image, template)
+    score = np.sum(diff)
+
+    return score
 
 
 def process_and_classify(image, templates, size=(120, 120)):
@@ -87,16 +152,18 @@ def process_and_classify(image, templates, size=(120, 120)):
     if bbox:
         cropped_image = get_centered_crop(image, bbox, size)
         best_match = None
-        best_score = -1
+        best_score = float('inf')  # Initialize to a high value for absdiff
+
         for template, filename in templates:
             template_bbox = detect_bounding_box(template)
             if template_bbox:
                 cropped_template = get_centered_crop(
                     template, template_bbox, size)
                 score = classify_number(cropped_template, cropped_image)
-                if score > best_score:
+                if score < best_score:  # Lower score is better for absdiff
                     best_score = score
                     best_match = filename
+
         return best_match, best_score
     return None, None
 
