@@ -1,3 +1,4 @@
+import glob
 import cv2 as cv
 import numpy as np
 import os
@@ -73,27 +74,40 @@ def load_templates(template_folder):
     for filename in os.listdir(template_folder):
         template_path = os.path.join(template_folder, filename)
         template = cv.imread(template_path)
-        templates.append(template)
+        templates.append((template, filename))
     return templates
 
 
+def save_warped_templates(input_folder, output_folder, size=(100, 100)):
+    os.makedirs(output_folder, exist_ok=True)
+    templates = load_templates(input_folder)
+    for template, filename in templates:
+        bbox = detect_bounding_box(template)
+        if bbox:
+            warped_template = warp_to_standard_size(template, bbox, size)
+            output_path = os.path.join(output_folder, filename)
+            cv.imwrite(output_path, warped_template)
+
+
+def save_warped_images(input_folder, output_folder, size=(100, 100)):
+    os.makedirs(output_folder, exist_ok=True)
+    image_paths = glob.glob(os.path.join(input_folder, "*.jpg"))
+    for image_path in image_paths:
+        image = cv.imread(image_path)
+        bbox = detect_bounding_box(image)
+        if bbox:
+            warped_image = warp_to_standard_size(image, bbox, size)
+            output_path = os.path.join(
+                output_folder, os.path.basename(image_path))
+            cv.imwrite(output_path, warped_image)
+
+
 def main():
-    template_folder = "templates"
-    templates = load_templates(template_folder)
+    # Save warped templates
+    save_warped_templates("templates", "templates2")
 
-    input_image_path = "./warped_images3/piece_1_02.jpg"
-    image = cv.imread(input_image_path)
-
-    best_match, best_score = process_and_classify(image, templates)
-    if best_match is not None:
-        print(f"Best match found with score: {best_score}")
-        cv.imshow("Best Match", warp_to_standard_size(
-            best_match, detect_bounding_box(best_match)))
-        cv.imshow("Warped Image", warp_to_standard_size(
-            image, detect_bounding_box(image)))
-        cv.waitKey(0)
-    else:
-        print("No match found")
+    # Save warped images
+    save_warped_images("warped_images3", "warped_images4")
 
 
 if __name__ == "__main__":
