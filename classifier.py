@@ -37,27 +37,32 @@ def detect_bounding_box(image):
             if x_min < np.inf and y_min < np.inf:
                 # Adjust the bounding box coordinates to account for the cropped margins
                 x, y, w, h = x_min + margin_w, y_min + margin_h, x_max - x_min, y_max - y_min
+
+                # Expand the bounding box by 10%
+                expand_w = int(w * 0.1)
+                expand_h = int(h * 0.1)
+                x = max(0, x - expand_w)
+                y = max(0, y - expand_h)
+                w = min(w + 2 * expand_w, image.shape[1] - x)
+                h = min(h + 2 * expand_h, image.shape[0] - y)
+
                 return x, y, w, h
     return None
 
 
-def warp_to_standard_size(image, bbox, size=(100, 100)):
+def get_centered_crop(image, bbox, size=(120, 120)):
     x, y, w, h = bbox
-    rect = np.array([
-        [x, y],
-        [x + w, y],
-        [x + w, y + h],
-        [x, y + h]
-    ], dtype="float32")
-    dst = np.array([
-        [0, 0],
-        [size[0] - 1, 0],
-        [size[0] - 1, size[1] - 1],
-        [0, size[1] - 1]
-    ], dtype="float32")
-    M = cv.getPerspectiveTransform(rect, dst)
-    warped = cv.warpPerspective(image, M, size)
-    return warped
+    center_x = x + w // 2
+    center_y = y + h // 2
+
+    # Calculate the crop coordinates
+    crop_x = max(0, center_x - size[0] // 2)
+    crop_y = max(0, center_y - size[1] // 2)
+    crop_x_end = min(image.shape[1], crop_x + size[0])
+    crop_y_end = min(image.shape[0], crop_y + size[1])
+
+    cropped = image[crop_y:crop_y_end, crop_x:crop_x_end]
+    return cropped
 
 
 def classify_number(template, image):
@@ -66,19 +71,21 @@ def classify_number(template, image):
     return max_val
 
 
-def process_and_classify(image, templates, size=(100, 100)):
+def process_and_classify(image, templates, size=(120, 120)):
     bbox = detect_bounding_box(image)
     if bbox:
-        warped_image = warp_to_standard_size(image, bbox, size)
+        cropped_image = get_centered_crop(image, bbox, size)
         best_match = None
         best_score = -1
         for template in templates:
-            warped_template = warp_to_standard_size(
-                template, detect_bounding_box(template), size)
-            score = classify_number(warped_template, warped_image)
-            if score > best_score:
-                best_score = score
-                best_match = template
+            template_bbox = detect_bounding_box(template)
+            if template_bbox:
+                cropped_template = get_centered_crop(
+                    template, template_bbox, size)
+                score = classify_number(cropped_template, cropped_image)
+                if score > best_score:
+                    best_score = score
+                    best_match = template
         return best_match, best_score
     return None, None
 
@@ -92,28 +99,28 @@ def load_templates(template_folder):
     return templates
 
 
-def save_warped_templates(input_folder, output_folder, size=(100, 100)):
+def save_warped_templates(input_folder, output_folder, size=(120, 120)):
     os.makedirs(output_folder, exist_ok=True)
     templates = load_templates(input_folder)
     for template, filename in templates:
         bbox = detect_bounding_box(template)
         if bbox:
-            warped_template = warp_to_standard_size(template, bbox, size)
+            cropped_template = get_centered_crop(template, bbox, size)
             output_path = os.path.join(output_folder, filename)
-            cv.imwrite(output_path, warped_template)
+            cv.imwrite(output_path, cropped_template)
 
 
-def save_warped_images(input_folder, output_folder, size=(100, 100)):
+def save_warped_images(input_folder, output_folder, size=(120, 120)):
     os.makedirs(output_folder, exist_ok=True)
     image_paths = glob.glob(os.path.join(input_folder, "*.jpg"))
     for image_path in image_paths:
         image = cv.imread(image_path)
         bbox = detect_bounding_box(image)
         if bbox:
-            warped_image = warp_to_standard_size(image, bbox, size)
+            cropped_image = get_centered_crop(image, bbox, size)
             output_path = os.path.join(
                 output_folder, os.path.basename(image_path))
-            cv.imwrite(output_path, warped_image)
+            cv.imwrite(output_path, cropped_image)
 
 
 def main():
