@@ -2,6 +2,7 @@ import glob
 import os
 import cv2 as cv
 import numpy as np
+from classifier import load_templates, process_and_classify
 
 
 def preprocess_image(frame):
@@ -150,82 +151,6 @@ def process_frame(frame):
         return None
 
 
-def detect_bounding_box(image):
-    gray = cv.cvtColor(image, cv.COLOR_BGR2GRAY)
-    _, thresh = cv.threshold(gray, 50, 255, cv.THRESH_BINARY_INV)
-
-    kernel = np.ones((5, 5), np.uint8)
-    morph = cv.morphologyEx(thresh, cv.MORPH_CLOSE, kernel)
-
-    contours, _ = cv.findContours(
-        morph, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
-    if contours:
-        x_min, y_min = np.inf, np.inf
-        x_max, y_max = -np.inf, -np.inf
-        for contour in contours:
-            x, y, w, h = cv.boundingRect(contour)
-            x_min = min(x_min, x)
-            y_min = min(y_min, y)
-            x_max = max(x_max, x + w)
-            y_max = max(y_max, y + h)
-        x, y, w, h = x_min, y_min, x_max - x_min, y_max - y_min
-        return x, y, w, h
-    return None
-
-
-def warp_to_standard_size(image, bbox, size=(100, 100)):
-    x, y, w, h = bbox
-    rect = np.array([
-        [x, y],
-        [x + w, y],
-        [x + w, y + h],
-        [x, y + h]
-    ], dtype="float32")
-    dst = np.array([
-        [0, 0],
-        [size[0] - 1, 0],
-        [size[0] - 1, size[1] - 1],
-        [0, size[1] - 1]
-    ], dtype="float32")
-    M = cv.getPerspectiveTransform(rect, dst)
-    warped = cv.warpPerspective(image, M, size)
-    return warped
-
-
-def classify_number(template, image):
-    result = cv.matchTemplate(image, template, cv.TM_CCOEFF_NORMED)
-    _, max_val, _, _ = cv.minMaxLoc(result)
-    return max_val
-
-
-def process_and_classify(image, templates, size=(100, 100)):
-    bbox = detect_bounding_box(image)
-    if bbox:
-        warped_image = warp_to_standard_size(image, bbox, size)
-        best_match = None
-        best_score = -1
-        for template, filename in templates:
-            template_bbox = detect_bounding_box(template)
-            if template_bbox:
-                warped_template = warp_to_standard_size(
-                    template, template_bbox, size)
-                score = classify_number(warped_template, warped_image)
-                if score > best_score:
-                    best_score = score
-                    best_match = filename
-        return best_match, best_score
-    return None, None
-
-
-def load_templates(template_folder):
-    templates = []
-    for filename in os.listdir(template_folder):
-        template_path = os.path.join(template_folder, filename)
-        template = cv.imread(template_path)
-        templates.append((template, filename))
-    return templates
-
-
 def compare_and_extract_pieces(current_frame, previous_frame, output_folder, image_name, templates):
     cell_size = 145
     grid_size = 14
@@ -330,7 +255,7 @@ def generate_templates():
 
 def generate_warped_images():
     input_folder = "antrenare"
-    output_folder = "warped_images3"
+    output_folder = "new_try"
     os.makedirs(output_folder, exist_ok=True)
 
     # Load and process the empty board

@@ -62,10 +62,23 @@ def get_centered_crop(image, bbox, size=(120, 120)):
     crop_y_end = min(image.shape[0], crop_y + size[1])
 
     cropped = image[crop_y:crop_y_end, crop_x:crop_x_end]
+
+    # Ensure the cropped image is of the expected size
+    if cropped.shape[0] != size[0] or cropped.shape[1] != size[1]:
+        cropped = cv.resize(cropped, size, interpolation=cv.INTER_AREA)
+
     return cropped
 
 
 def classify_number(template, image):
+    # Ensure the template is not larger than the image
+    if template.shape[0] > image.shape[0] or template.shape[1] > image.shape[1]:
+        scale_factor = min(
+            image.shape[0] / template.shape[0], image.shape[1] / template.shape[1])
+        template = cv.resize(template, (int(template.shape[1] * scale_factor), int(
+            template.shape[0] * scale_factor)), interpolation=cv.INTER_AREA)
+
+    print(f"Template size: {template.shape}, Image size: {image.shape}")
     result = cv.matchTemplate(image, template, cv.TM_CCOEFF_NORMED)
     _, max_val, _, _ = cv.minMaxLoc(result)
     return max_val
@@ -77,7 +90,7 @@ def process_and_classify(image, templates, size=(120, 120)):
         cropped_image = get_centered_crop(image, bbox, size)
         best_match = None
         best_score = -1
-        for template in templates:
+        for template, filename in templates:
             template_bbox = detect_bounding_box(template)
             if template_bbox:
                 cropped_template = get_centered_crop(
@@ -85,7 +98,7 @@ def process_and_classify(image, templates, size=(120, 120)):
                 score = classify_number(cropped_template, cropped_image)
                 if score > best_score:
                     best_score = score
-                    best_match = template
+                    best_match = filename
         return best_match, best_score
     return None, None
 
@@ -133,3 +146,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+# export the functions
