@@ -3,19 +3,24 @@ import os
 import cv2 as cv
 import numpy as np
 
+
 def preprocess_image(frame):
     gray = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
     blurred = cv.GaussianBlur(gray, (5, 5), 0)
     return blurred
 
+
 def detect_edges(blurred):
     edges = cv.Canny(blurred, 50, 150)
     return edges
 
+
 def find_largest_contour(edges):
-    contours, _ = cv.findContours(edges, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
+    contours, _ = cv.findContours(
+        edges, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
     max_contour = max(contours, key=cv.contourArea)
     return max_contour
+
 
 def order_points(pts):
     rect = np.zeros((4, 2), dtype="float32")
@@ -26,6 +31,7 @@ def order_points(pts):
     rect[1] = pts[np.argmin(diff)]
     rect[3] = pts[np.argmax(diff)]
     return rect
+
 
 def get_perspective_transform(frame, contour, width, height):
     epsilon = 0.02 * cv.arcLength(contour, True)
@@ -41,14 +47,17 @@ def get_perspective_transform(frame, contour, width, height):
     else:
         return None
 
+
 def apply_mask(frame, lower_hsv, upper_hsv):
     frame_hsv = cv.cvtColor(frame, cv.COLOR_BGR2HSV)
     mask = cv.inRange(frame_hsv, lower_hsv, upper_hsv)
     result = cv.bitwise_and(frame, frame, mask=mask)
     return result, mask
 
+
 def find_squares(mask):
-    contours, _ = cv.findContours(mask, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
+    contours, _ = cv.findContours(
+        mask, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
     squares = []
     for contour in contours:
         x, y, w, h = cv.boundingRect(contour)
@@ -58,19 +67,9 @@ def find_squares(mask):
         # Check if the contour is a square or a rectangle with aspect ratio close to 1
         if 0.90 <= aspect_ratio <= 1.10 and 2500 <= area:
             squares.append((x, y, w, h))
-        # else:
-        #     # Check for L-shaped or reversed L-shaped contours
-        #     hull = cv.convexHull(contour)
-        #     hull_area = cv.contourArea(hull)
-        #     if hull_area > 0:  # Ensure hull_area is not zero
-        #         solidity = area / float(hull_area)
-        #         if 2500 <= area and 0.60 <= solidity <= 0.90:
-        #             squares.append((x, y, w, h))
-        #         # Check for rectangles
-                    # elif 2500 <= area and (0.50 <= aspect_ratio <= 2.0):
-                    #     squares.append((x, y, w, h))
 
     return squares
+
 
 def find_corners(squares):
     top_left = min(squares, key=lambda s: s[0] + s[1])
@@ -78,6 +77,7 @@ def find_corners(squares):
     bottom_left = min(squares, key=lambda s: s[0] - s[1])
     bottom_right = max(squares, key=lambda s: s[0] + s[1])
     return top_left, top_right, bottom_left, bottom_right
+
 
 def zoom_image(image, zoom_factor):
     height, width = image.shape[:2]
@@ -88,11 +88,13 @@ def zoom_image(image, zoom_factor):
     # Crop the center of the zoomed image to maintain the original dimensions
     start_x = (new_width - width) // 2
     start_y = (new_height - height) // 2
-    cropped_image = zoomed_image[start_y:start_y + height, start_x:start_x + width]
+    cropped_image = zoomed_image[start_y:start_y +
+                                 height, start_x:start_x + width]
     return cropped_image
 
+
 def process_frame(frame):
-    width, height = 2030, 2030 # 14x14 grid of 145x145 cells
+    width, height = 2030, 2030  # 14x14 grid of 145x145 cells
 
     # Resize the frame for easier processing
     frame_resized = cv.resize(frame, (1024, 768))
@@ -108,7 +110,8 @@ def process_frame(frame):
 
     max_contour = find_largest_contour(edges)
 
-    warped = get_perspective_transform(frame_resized, max_contour, width, height)
+    warped = get_perspective_transform(
+        frame_resized, max_contour, width, height)
     if warped is not None:
         # Zoom the warped image by 20%
         zoomed_warped = zoom_image(warped, 1.2)
@@ -116,7 +119,8 @@ def process_frame(frame):
         # Apply masking with specified HSV values on the zoomed warped image
         lower_hsv_warped = np.array([0, 0, 0])
         upper_hsv_warped = np.array([90, 130, 255])
-        masked_warped, mask_warped = apply_mask(zoomed_warped, lower_hsv_warped, upper_hsv_warped)
+        masked_warped, mask_warped = apply_mask(
+            zoomed_warped, lower_hsv_warped, upper_hsv_warped)
 
         # Find squares in the mask of the zoomed warped image
         squares = find_squares(mask_warped)
@@ -133,7 +137,8 @@ def process_frame(frame):
         ], dtype="float32")
 
         # Get perspective transform and warp the image again
-        further_warped = get_perspective_transform(zoomed_warped, new_contour, width, height)
+        further_warped = get_perspective_transform(
+            zoomed_warped, new_contour, width, height)
 
         if further_warped is not None:
             return further_warped
@@ -144,7 +149,84 @@ def process_frame(frame):
         print("Could not find a valid perspective transform.")
         return None
 
-def compare_and_extract_pieces(current_frame, previous_frame, output_folder, image_name):
+
+def detect_bounding_box(image):
+    gray = cv.cvtColor(image, cv.COLOR_BGR2GRAY)
+    _, thresh = cv.threshold(gray, 50, 255, cv.THRESH_BINARY_INV)
+
+    kernel = np.ones((5, 5), np.uint8)
+    morph = cv.morphologyEx(thresh, cv.MORPH_CLOSE, kernel)
+
+    contours, _ = cv.findContours(
+        morph, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
+    if contours:
+        x_min, y_min = np.inf, np.inf
+        x_max, y_max = -np.inf, -np.inf
+        for contour in contours:
+            x, y, w, h = cv.boundingRect(contour)
+            x_min = min(x_min, x)
+            y_min = min(y_min, y)
+            x_max = max(x_max, x + w)
+            y_max = max(y_max, y + h)
+        x, y, w, h = x_min, y_min, x_max - x_min, y_max - y_min
+        return x, y, w, h
+    return None
+
+
+def warp_to_standard_size(image, bbox, size=(100, 100)):
+    x, y, w, h = bbox
+    rect = np.array([
+        [x, y],
+        [x + w, y],
+        [x + w, y + h],
+        [x, y + h]
+    ], dtype="float32")
+    dst = np.array([
+        [0, 0],
+        [size[0] - 1, 0],
+        [size[0] - 1, size[1] - 1],
+        [0, size[1] - 1]
+    ], dtype="float32")
+    M = cv.getPerspectiveTransform(rect, dst)
+    warped = cv.warpPerspective(image, M, size)
+    return warped
+
+
+def classify_number(template, image):
+    result = cv.matchTemplate(image, template, cv.TM_CCOEFF_NORMED)
+    _, max_val, _, _ = cv.minMaxLoc(result)
+    return max_val
+
+
+def process_and_classify(image, templates, size=(100, 100)):
+    bbox = detect_bounding_box(image)
+    if bbox:
+        warped_image = warp_to_standard_size(image, bbox, size)
+        best_match = None
+        best_score = -1
+        for template, filename in templates:
+            template_bbox = detect_bounding_box(template)
+            if template_bbox:
+                warped_template = warp_to_standard_size(
+                    template, template_bbox, size)
+                score = classify_number(warped_template, warped_image)
+                if score > best_score:
+                    best_score = score
+                    best_match = filename
+        return best_match, best_score
+    return None, None
+
+
+def load_templates(template_folder):
+    templates = []
+    for filename in os.listdir(template_folder):
+        template_path = os.path.join(template_folder, filename)
+        template = cv.imread(template_path)
+        templates.append((template, filename))
+    return templates
+
+
+def compare_and_extract_pieces(current_frame, previous_frame, output_folder, image_name, templates):
     cell_size = 145
     grid_size = 14
     max_diff = 0
@@ -170,7 +252,8 @@ def compare_and_extract_pieces(current_frame, previous_frame, output_folder, ima
     if max_diff_cell:
         x_start, y_start, x_end, y_end, row, col = max_diff_cell
         piece = current_frame[y_start:y_end, x_start:x_end]
-        piece_output_path = os.path.join(output_folder, f"piece_{image_name}.jpg")
+        piece_output_path = os.path.join(
+            output_folder, f"piece_{image_name}.jpg")
         cv.imwrite(piece_output_path, piece)
 
         # Determine the grid position
@@ -178,20 +261,31 @@ def compare_and_extract_pieces(current_frame, previous_frame, output_folder, ima
         row_number = row + 1
         position = f"{row_number}{col_letter}"
 
-        # Write the position to a text file
-        text_output_path = os.path.join(output_folder, f"piece_{image_name}.txt")
-        with open(text_output_path, 'w') as f:
-            f.write(position)
+        # Classify the piece
+        best_match, best_score = process_and_classify(piece, templates)
+        if best_match is not None:
+            best_match_filename = os.path.splitext(best_match)[0]
+        else:
+            best_match_filename = "unknown"
 
-def process_image(image_path, previous_frame, output_folder):
+        # Write the position and classification to a text file
+        text_output_path = os.path.join(
+            output_folder, f"piece_{image_name}.txt")
+        with open(text_output_path, 'w') as f:
+            f.write(f"{position} {best_match_filename}")
+
+
+def process_image(image_path, previous_frame, output_folder, templates):
     print(f"Processing {image_path}")
     frame = cv.imread(image_path)
     warped_frame = process_frame(frame)
     if warped_frame is not None:
         image_name = os.path.splitext(os.path.basename(image_path))[0]
         if previous_frame is not None:
-            compare_and_extract_pieces(warped_frame, previous_frame, output_folder, image_name)
+            compare_and_extract_pieces(
+                warped_frame, previous_frame, output_folder, image_name, templates)
     return warped_frame
+
 
 def generate_templates():
     input_image_path = "imagini_auxiliare/03.jpg"
@@ -208,15 +302,6 @@ def generate_templates():
         return
 
     # Define the grid positions and corresponding numbers
-    # positions = [
-    #     "1A", "1C", "1E", "1G", "1I", "1K", "1M",
-    #     "3A", "3C", "3E", "3G", "3I", "3K", "3M",
-    #     "5A", "5C", "5E", "5G", "5I", "5K", "5M",
-    #     "7A", "7C", "7E", "7G", "7I", "7K", "7M",
-    #     "9A", "9C", "9E", "9G", "9I", "9K", "9M",
-    #     "11A", "11C", "11E", "11G", "11I", "11K", "11M",
-    #     "13A", "13C", "13E", "13G"
-    # ]
     positions = [
         "6E", "6F", "6G", "6H", "6I", "6J", "6K", "6L",
         "7E", "7F", "7G", "7H", "7I", "7J", "7K", "7L",
@@ -242,6 +327,7 @@ def generate_templates():
         piece_output_path = os.path.join(output_folder, f"{num}.jpg")
         cv.imwrite(piece_output_path, piece)
 
+
 def generate_warped_images():
     input_folder = "antrenare"
     output_folder = "warped_images3"
@@ -254,16 +340,19 @@ def generate_warped_images():
 
     previous_frame = empty_board_warped
     image_paths = glob.glob(os.path.join(input_folder, "*.jpg"))
+    templates = load_templates("templates")
     for frame_count, image_path in enumerate(image_paths):
         if frame_count % 50 == 0:
             # Reset the base frame every 50 images
             previous_frame = empty_board_warped
-        previous_frame = process_image(image_path, previous_frame, output_folder)
+        previous_frame = process_image(
+            image_path, previous_frame, output_folder, templates)
+
 
 def main():
     generate_templates()
     generate_warped_images()
-    
+
 
 if __name__ == "__main__":
     main()
