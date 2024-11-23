@@ -8,22 +8,36 @@ def detect_bounding_box(image):
     gray = cv.cvtColor(image, cv.COLOR_BGR2GRAY)
     _, thresh = cv.threshold(gray, 50, 255, cv.THRESH_BINARY_INV)
 
+    # Use morphological operations to remove noise and merge nearby components
     kernel = np.ones((5, 5), np.uint8)
     morph = cv.morphologyEx(thresh, cv.MORPH_CLOSE, kernel)
 
+    # Ignore the margins (10%)
+    h, w = morph.shape
+    margin_h = int(h * 0.1)
+    margin_w = int(w * 0.1)
+    cropped_morph = morph[margin_h:h-margin_h, margin_w:w-margin_w]
+
     contours, _ = cv.findContours(
-        morph, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
+        cropped_morph, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
     if contours:
-        x_min, y_min = np.inf, np.inf
-        x_max, y_max = -np.inf, -np.inf
-        for contour in contours:
-            x, y, w, h = cv.boundingRect(contour)
-            x_min = min(x_min, x)
-            y_min = min(y_min, y)
-            x_max = max(x_max, x + w)
-            y_max = max(y_max, y + h)
-        x, y, w, h = x_min, y_min, x_max - x_min, y_max - y_min
-        return x, y, w, h
+        # Filter out small contours that are likely to be noise or margins
+        filtered_contours = [
+            contour for contour in contours if cv.contourArea(contour) > 100]
+
+        if filtered_contours:
+            x_min, y_min = np.inf, np.inf
+            x_max, y_max = -np.inf, -np.inf
+            for contour in filtered_contours:
+                x, y, w, h = cv.boundingRect(contour)
+                x_min = min(x_min, x)
+                y_min = min(y_min, y)
+                x_max = max(x_max, x + w)
+                y_max = max(y_max, y + h)
+            if x_min < np.inf and y_min < np.inf:
+                # Adjust the bounding box coordinates to account for the cropped margins
+                x, y, w, h = x_min + margin_w, y_min + margin_h, x_max - x_min, y_max - y_min
+                return x, y, w, h
     return None
 
 
