@@ -1,7 +1,7 @@
-import glob
 import cv2 as cv
 import numpy as np
 import os
+import glob
 
 
 def detect_bounding_box(image):
@@ -50,16 +50,18 @@ def detect_bounding_box(image):
     return None
 
 
-def get_centered_crop(image, bbox, size=(120, 120)):
+def get_centered_crop(image, bbox, size=(120, 120), zoom_out_factor=1.1):
     x, y, w, h = bbox
     center_x = x + w // 2
     center_y = y + h // 2
 
-    # Calculate the crop coordinates
-    crop_x = max(0, center_x - size[0] // 2)
-    crop_y = max(0, center_y - size[1] // 2)
-    crop_x_end = min(image.shape[1], crop_x + size[0])
-    crop_y_end = min(image.shape[0], crop_y + size[1])
+    # Calculate the crop coordinates with zoom out factor
+    new_w = int(w * zoom_out_factor)
+    new_h = int(h * zoom_out_factor)
+    crop_x = max(0, center_x - new_w // 2)
+    crop_y = max(0, center_y - new_h // 2)
+    crop_x_end = min(image.shape[1], crop_x + new_w)
+    crop_y_end = min(image.shape[0], crop_y + new_h)
 
     cropped = image[crop_y:crop_y_end, crop_x:crop_x_end]
 
@@ -90,14 +92,10 @@ def process_and_classify(image, templates, size=(120, 120)):
         best_match = None
         best_score = -1
         for template, filename in templates:
-            template_bbox = detect_bounding_box(template)
-            if template_bbox:
-                cropped_template = get_centered_crop(
-                    template, template_bbox, size)
-                score = classify_number(cropped_template, cropped_image)
-                if score > best_score:
-                    best_score = score
-                    best_match = filename
+            score = classify_number(template, cropped_image)
+            if score > best_score:
+                best_score = score
+                best_match = filename
         return best_match, best_score
     return None, None
 
@@ -145,5 +143,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-# export the functions

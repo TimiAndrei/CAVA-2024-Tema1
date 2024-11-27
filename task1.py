@@ -2,7 +2,7 @@ import glob
 import os
 import cv2 as cv
 import numpy as np
-from classifier import load_templates, process_and_classify
+from classifier import detect_bounding_box, get_centered_crop, load_templates, process_and_classify
 
 
 def preprocess_image(frame):
@@ -200,6 +200,11 @@ def compare_and_extract_pieces(current_frame, previous_frame, output_folder, ima
         piece_output_path = os.path.join(
             output_folder, f"piece_{image_name}.jpg")
         cv.imwrite(piece_output_path, piece)
+        cropped_piece = get_centered_crop(
+            piece, detect_bounding_box(piece), size=(120, 120))
+        cropped_piece_output_path = os.path.join(
+            output_folder, f"piece_{image_name}_cropped.jpg")
+        cv.imwrite(cropped_piece_output_path, cropped_piece)
 
         # Determine the grid position
         col_letter = chr(ord('A') + col)
@@ -207,12 +212,14 @@ def compare_and_extract_pieces(current_frame, previous_frame, output_folder, ima
         position = f"{row_number}{col_letter}"
 
         # Classify the piece
-        best_match, best_score = process_and_classify(piece, templates)
+        best_match, score = process_and_classify(piece, templates)
         if best_match is not None:
             best_match_filename = os.path.splitext(best_match)[0]
         else:
             best_match_filename = "unknown"
 
+        print(
+            f"Piece {image_name} at position {position} is classified as {best_match_filename} with score {score}")
         # Write the position and classification to a text file
         text_output_path = os.path.join(
             output_folder, f"piece_{image_name}.txt")
@@ -234,7 +241,7 @@ def process_image(image_path, previous_frame, output_folder, templates):
 
 def generate_templates():
     input_image_path = "imagini_auxiliare/03.jpg"
-    output_folder = "templates"
+    output_folder = "templates3"
     os.makedirs(output_folder, exist_ok=True)
 
     # Process the input image
@@ -269,13 +276,20 @@ def generate_templates():
         y_end = y_start + cell_size
 
         piece = warped_frame[y_start:y_end, x_start:x_end]
-        piece_output_path = os.path.join(output_folder, f"{num}.jpg")
-        cv.imwrite(piece_output_path, piece)
+
+        # Detect bounding box and get centered crop
+        bbox = detect_bounding_box(piece)
+        if bbox:
+            cropped_piece = get_centered_crop(piece, bbox, size=(120, 120))
+            piece_output_path = os.path.join(output_folder, f"{num}.jpg")
+            cv.imwrite(piece_output_path, cropped_piece)
+        else:
+            print(f"Bounding box not found for piece {num}")
 
 
 def generate_warped_images():
     input_folder = "antrenare"
-    output_folder = "new_try"
+    output_folder = "new_try2"
     os.makedirs(output_folder, exist_ok=True)
 
     # Load and process the empty board
@@ -285,7 +299,7 @@ def generate_warped_images():
 
     previous_frame = empty_board_warped
     image_paths = glob.glob(os.path.join(input_folder, "*.jpg"))
-    templates = load_templates("templates")
+    templates = load_templates("templates3")
     for frame_count, image_path in enumerate(image_paths):
         if frame_count % 50 == 0:
             # Reset the base frame every 50 images
