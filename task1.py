@@ -299,7 +299,7 @@ def generate_warped_images():
 
     previous_frame = empty_board_warped
     image_paths = glob.glob(os.path.join(input_folder, "*.jpg"))
-    templates = load_templates("templates3")
+    templates = load_templates("median_templates")
     for frame_count, image_path in enumerate(image_paths):
         if frame_count % 50 == 0:
             # Reset the base frame every 50 images
