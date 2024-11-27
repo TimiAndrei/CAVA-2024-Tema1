@@ -72,7 +72,7 @@ def get_centered_crop(image, bbox, size=(120, 120)):
 
     # Apply a binary threshold to create a binary image with black digits and white background
     _, binary_image = cv.threshold(
-        cropped_gray, 110, 255, cv.THRESH_BINARY_INV)
+        cropped_gray, 100, 255, cv.THRESH_BINARY_INV)
 
     # Create a mask where white pixels are set to zero (transparent)
     mask = binary_image == 255
@@ -150,10 +150,10 @@ def save_warped_images(input_folder, output_folder, size=(120, 120)):
 
 def main():
     # Save warped templates
-    save_warped_templates("templates", "templates2")
+    save_warped_templates("templates", "templates3")
 
     # Save warped images
-    save_warped_images("warped_images3", "warped_images4")
+    save_warped_images("warped_images3", "warped_images5")
 
 
 if __name__ == "__main__":

@@ -57,6 +57,10 @@ def apply_mask(frame, lower_hsv, upper_hsv):
 
 
 def find_squares(mask):
+    height = mask.shape[0]
+    top_20_percent = height * 0.2
+    bottom_20_percent = height * 0.8
+
     contours, _ = cv.findContours(
         mask, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
     squares = []
@@ -64,11 +68,11 @@ def find_squares(mask):
         x, y, w, h = cv.boundingRect(contour)
         aspect_ratio = w / float(h)
         area = cv.contourArea(contour)
-
-        # Check if the contour is a square or a rectangle with aspect ratio close to 1
-        if 0.90 <= aspect_ratio <= 1.10 and 2500 <= area:
-            squares.append((x, y, w, h))
-
+        # Aspect ratio close to 1 and area bigger than 50x50
+        if 0.5 <= aspect_ratio <= 2.00 and 2500 <= area:
+            # Check if the square is in the top 20% or bottom 20% of the image
+            if y <= top_20_percent or y >= bottom_20_percent:
+                squares.append((x, y, w, h))
     return squares
 
 
@@ -210,7 +214,7 @@ def process_image(image_path, previous_frame, output_folder, templates):
 
 
 def generate_templates():
-    input_image_path = "imagini_auxiliare/03.jpg"
+    input_image_path = "imagini_auxiliare/04.jpg"
     output_folder = "templates"
     os.makedirs(output_folder, exist_ok=True)
 
@@ -224,13 +228,23 @@ def generate_templates():
         return
 
     # Define the grid positions and corresponding numbers
+    # positions = [
+    #     "6E", "6F", "6G", "6H", "6I", "6J", "6K", "6L",
+    #     "7E", "7F", "7G", "7H", "7I", "7J", "7K", "7L",
+    #     "8E", "8F", "8G", "8H", "8I", "8J", "8K", "8L",
+    #     "9E", "9F", "9G", "9H", "9I", "9J", "9K", "9L",
+    #     "10E", "10F", "10G", "10H", "10I", "10J", "10K", "10L",
+    #     "11E", "11F", "11G", "11H", "11I", "11J"
+    # ]
+
     positions = [
-        "6E", "6F", "6G", "6H", "6I", "6J", "6K", "6L",
-        "7E", "7F", "7G", "7H", "7I", "7J", "7K", "7L",
-        "8E", "8F", "8G", "8H", "8I", "8J", "8K", "8L",
-        "9E", "9F", "9G", "9H", "9I", "9J", "9K", "9L",
-        "10E", "10F", "10G", "10H", "10I", "10J", "10K", "10L",
-        "11E", "11F", "11G", "11H", "11I", "11J"
+        "1A", "1C", "1E", "1G", "1I", "1K", "1M",
+        "3A", "3C", "3E", "3G", "3I", "3K", "3M",
+        "5A", "5C", "5E", "5G", "5I", "5K", "5M",
+        "7A", "7C", "7E", "7G", "7I", "7K", "7M",
+        "9A", "9C", "9E", "9G", "9I", "9K", "9M",
+        "11A", "11C", "11E", "11G", "11I", "11K", "11M",
+        "13A", "13C", "13E", "13G"
     ]
     numbers = [
         0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 24, 25, 27, 28, 30, 32, 35, 36, 40, 42, 45, 48, 49, 50, 54, 56, 60, 63, 64, 70, 72, 80, 81, 90
