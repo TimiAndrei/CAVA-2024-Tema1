@@ -67,21 +67,7 @@ def get_centered_crop(image, bbox, size=(120, 120)):
     if cropped.shape[0] != size[0] or cropped.shape[1] != size[1]:
         cropped = cv.resize(cropped, size, interpolation=cv.INTER_AREA)
 
-    # Convert to grayscale
-    cropped_gray = cv.cvtColor(cropped, cv.COLOR_BGR2GRAY)
-
-    # Apply a binary threshold to create a binary image with black digits and white background
-    _, binary_image = cv.threshold(
-        cropped_gray, 100, 255, cv.THRESH_BINARY_INV)
-
-    # Create a mask where white pixels are set to zero (transparent)
-    mask = binary_image == 255
-
-    # Apply the mask to keep only the black pixels
-    result = np.zeros_like(binary_image)
-    result[mask] = binary_image[mask]
-
-    return result
+    return cropped
 
 
 def classify_number(template, image):
@@ -91,6 +77,7 @@ def classify_number(template, image):
             image.shape[0] / template.shape[0], image.shape[1] / template.shape[1])
         template = cv.resize(template, (int(template.shape[1] * scale_factor), int(
             template.shape[0] * scale_factor)), interpolation=cv.INTER_AREA)
+
     result = cv.matchTemplate(image, template, cv.TM_CCOEFF_NORMED)
     _, max_val, _, _ = cv.minMaxLoc(result)
     return max_val
@@ -150,10 +137,10 @@ def save_warped_images(input_folder, output_folder, size=(120, 120)):
 
 def main():
     # Save warped templates
-    save_warped_templates("templates", "templates3")
+    save_warped_templates("templates", "templates2")
 
     # Save warped images
-    save_warped_images("warped_images3", "warped_images5")
+    save_warped_images("warped_images3", "warped_images4")
 
 
 if __name__ == "__main__":

@@ -2,15 +2,12 @@ import cv2 as cv
 import numpy as np
 
 
-def preprocess_image(frame):
-    gray = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
-    blurred = cv.GaussianBlur(gray, (5, 5), 0)
-    return blurred
-
-
 def detect_edges(blurred):
     edges = cv.Canny(blurred, 50, 150)
-    return edges
+    dilation_kernel = cv.getStructuringElement(cv.MORPH_RECT, (5, 5))
+    thick_edges = cv.dilate(edges, dilation_kernel, iterations=4)
+
+    return thick_edges
 
 
 def find_largest_contour(edges):
@@ -96,46 +93,46 @@ def zoom_image(image, zoom_factor):
 
 
 def process_frame(frame):
-    width, height = 2040, 2040
-
-    # Resize the frame for easier processing
-    frame_resized = cv.resize(frame, (1024, 768))
+    width, height = 2030, 2030
 
     # Apply masking
     lower_hsv = np.array([0, 0, 0])
-    upper_hsv = np.array([90, 255, 255])
-    masked_frame, mask = apply_mask(frame_resized, lower_hsv, upper_hsv)
+    upper_hsv = np.array([80, 255, 255])
+    masked_frame, mask = apply_mask(frame, lower_hsv, upper_hsv)
 
     # Display the masked image
-    cv.imshow("Masked", masked_frame)
+    masked_frame_to_display = cv.resize(masked_frame, (640, 480))
+    cv.imshow("Masked", masked_frame_to_display)
     cv.waitKey(0)
 
-    # Preprocess the masked image
-    blurred = preprocess_image(masked_frame)
-    edges = detect_edges(blurred)
+    edges = detect_edges(masked_frame)
 
     # Display the edges
-    cv.imshow("Edges", edges)
+    edges_to_display = cv.resize(edges, (1024, 720))
+    cv.imshow("Edges", edges_to_display)
     cv.waitKey(0)
 
     max_contour = find_largest_contour(edges)
 
     # Draw the largest contour on the original image
-    contour_image = frame_resized.copy()
+    contour_image = frame.copy()
     cv.drawContours(contour_image, [max_contour], -1, (0, 255, 0), 3)
+    contour_image = cv.resize(contour_image, (640, 480))
     cv.imshow("Contour", contour_image)
     cv.waitKey(0)
 
     warped = get_perspective_transform(
-        frame_resized, max_contour, width, height)
+        frame, max_contour, width, height)
+
     if warped is not None:
         # Display the warped image
         resized_warped = cv.resize(warped, (640, 480))
         cv.imshow("Warped", resized_warped)
         cv.waitKey(0)
 
-        zoomed_warped = zoom_image(warped, 1.2)
-        cv.imshow("Zoomed Warped", zoomed_warped)
+        zoomed_warped = zoom_image(warped, 1.3)
+        zoomed_warped_to_display = cv.resize(zoomed_warped, (640, 480))
+        cv.imshow("Zoomed Warped", zoomed_warped_to_display)
         cv.waitKey(0)
 
         # Apply masking with specified HSV values on the zoomed warped image
@@ -188,8 +185,8 @@ def process_frame(frame):
 
 
 def main():
-    # frame = cv.imread("antrenare/3_34.jpg")
-    frame = cv.imread("imagini_auxiliare/04.jpg")
+    frame = cv.imread("antrenare/1_01.jpg")
+    # frame = cv.imread("imagini_auxiliare/03.jpg")
     process_frame(frame)
 
 

@@ -37,5 +37,5 @@ def compare_text_files(antrenare_folder, new_test2_folder):
 
 if __name__ == "__main__":
     antrenare_folder = "antrenare"
-    new_test2_folder = "new_try2"
+    new_test2_folder = "new_try"
     compare_text_files(antrenare_folder, new_test2_folder)
