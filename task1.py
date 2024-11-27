@@ -212,14 +212,16 @@ def compare_and_extract_pieces(current_frame, previous_frame, output_folder, ima
         position = f"{row_number}{col_letter}"
 
         # Classify the piece
-        best_match, score = process_and_classify(piece, templates)
-        if best_match is not None:
+        matches_and_scores = process_and_classify(piece, templates)
+        if matches_and_scores:
+            best_match, best_score = matches_and_scores[0]
             best_match_filename = os.path.splitext(best_match)[0]
         else:
             best_match_filename = "unknown"
 
-        print(
-            f"Piece {image_name} at position {position} is classified as {best_match_filename} with score {score}")
+        # Optionally, you can print or log all matches and scores
+        for match, score in matches_and_scores:
+            print(f"Template: {match}, Score: {score}")
         # Write the position and classification to a text file
         text_output_path = os.path.join(
             output_folder, f"piece_{image_name}.txt")

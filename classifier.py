@@ -85,19 +85,35 @@ def classify_number(template, image):
     return max_val
 
 
+# def process_and_classify(image, templates, size=(120, 120)):
+#     bbox = detect_bounding_box(image)
+#     if bbox:
+#         cropped_image = get_centered_crop(image, bbox, size)
+#         best_match = None
+#         best_score = -1
+#         for template, filename in templates:
+#             score = classify_number(template, cropped_image)
+#             if score > best_score:
+#                 best_score = score
+#                 best_match = filename
+#         return best_match, best_score
+#     return None, None
+
 def process_and_classify(image, templates, size=(120, 120)):
     bbox = detect_bounding_box(image)
     if bbox:
         cropped_image = get_centered_crop(image, bbox, size)
-        best_match = None
-        best_score = -1
+        matches_and_scores = []
+
         for template, filename in templates:
             score = classify_number(template, cropped_image)
-            if score > best_score:
-                best_score = score
-                best_match = filename
-        return best_match, best_score
-    return None, None
+            matches_and_scores.append((filename, score))
+
+        # Sort the matches and scores by score in descending order
+        matches_and_scores.sort(key=lambda x: x[1], reverse=True)
+
+        return matches_and_scores
+    return []
 
 
 def load_templates(template_folder):
