@@ -1,3 +1,5 @@
+from collections import defaultdict
+import glob
 import os
 import cv2 as cv
 import numpy as np
@@ -97,3 +99,101 @@ def get_auxiliary_templates(all_pieces_by_classification):
             else:
                 print(
                     f"Bounding box not found for piece {num} in {input_image_path}")
+
+
+def get_pieces(image_path, previous_frame):
+    cell_size = 145
+    grid_size = 14
+    pieces_by_classification = defaultdict(list)
+
+    image_name = os.path.basename(image_path)
+    txt_path = image_path.replace('.jpg', '.txt')
+    current_frame = cv.imread(image_path)
+    current_frame = process_frame(current_frame)
+
+    if current_frame is None:
+        print(f"Failed to load image: {image_path}")
+        return pieces_by_classification, previous_frame
+
+    if not os.path.exists(txt_path):
+        print(f"Classification file not found: {txt_path}")
+        return pieces_by_classification, previous_frame
+
+    with open(txt_path, 'r') as f:
+        content = f.read().strip()
+        position, classification = content.split()
+        classification = int(classification)
+
+    max_diff = 0
+    max_diff_cell = None
+
+    for i in range(grid_size):
+        for j in range(grid_size):
+            x_start = j * cell_size
+            y_start = i * cell_size
+            x_end = x_start + cell_size
+            y_end = y_start + cell_size
+
+            current_cell = current_frame[y_start:y_end, x_start:x_end]
+            if previous_frame is not None:
+                previous_cell = previous_frame[y_start:y_end, x_start:x_end]
+                diff = cv.absdiff(current_cell, previous_cell)
+                diff_sum = np.sum(diff)
+
+                if diff_sum > max_diff:
+                    max_diff = diff_sum
+                    max_diff_cell = (x_start, y_start, x_end, y_end, i, j)
+
+    if max_diff_cell:
+        x_start, y_start, x_end, y_end, row, col = max_diff_cell
+        piece = current_frame[y_start:y_end, x_start:x_end]
+
+        bbox = detect_bounding_box(piece)
+        if bbox:
+            cropped_piece = get_centered_crop(piece, bbox, size=(120, 120))
+            # Add the piece to the dictionary
+
+            pieces_by_classification[classification].append(cropped_piece)
+            print(f"Classified piece {image_name} as {classification}")
+        else:
+            print(f"Bounding box not found for piece {image_name}")
+
+    return pieces_by_classification, current_frame
+
+
+def generate_templates():
+    input_folder = "antrenare"
+    output_folder = "new_median_templates"
+    os.makedirs(output_folder, exist_ok=True)
+
+    # Load and process the empty board
+    empty_board = cv.imread("imagini_auxiliare/01.jpg")
+    empty_board_warped = process_frame(empty_board)
+
+    previous_frame = empty_board_warped
+    image_paths = glob.glob(os.path.join(input_folder, "*.jpg"))
+
+    all_pieces_by_classification = defaultdict(list)
+
+    print("Analyzing training pictures...")
+    for frame_count, image_path in enumerate(image_paths):
+        if frame_count % 50 == 0:
+            # Reset the base frame every 50 images
+            previous_frame = empty_board_warped
+
+        # Load the image
+        frame = cv.imread(image_path)
+        if frame is None:
+            print(f"Failed to load image: {image_path}")
+            continue
+
+        pieces_by_classification, previous_frame = get_pieces(
+            image_path, previous_frame)
+
+        # Merge the pieces into the main dictionary
+        for classification, pieces in pieces_by_classification.items():
+            all_pieces_by_classification[classification].extend(pieces)
+
+    get_auxiliary_templates(all_pieces_by_classification)
+
+    save_median_templates(all_pieces_by_classification, output_folder)
