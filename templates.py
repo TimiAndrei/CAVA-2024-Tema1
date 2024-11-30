@@ -154,7 +154,8 @@ def get_pieces(image_path, previous_frame):
             # Add the piece to the dictionary
 
             pieces_by_classification[classification].append(cropped_piece)
-            print(f"Classified piece {image_name} as {classification}")
+            # print(f"Classified piece {image_name} as {classification}")
+            print("Processed", image_name)
         else:
             print(f"Bounding box not found for piece {image_name}")
 
@@ -175,7 +176,7 @@ def generate_templates():
 
     all_pieces_by_classification = defaultdict(list)
 
-    print("Analyzing training pictures...")
+    print("Analyzing training pictures to generate templates...")
     for frame_count, image_path in enumerate(image_paths):
         if frame_count % 50 == 0:
             # Reset the base frame every 50 images
