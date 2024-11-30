@@ -99,7 +99,7 @@ def process_frame(frame):
 
     # Apply masking
     lower_hsv = np.array([0, 0, 0])
-    upper_hsv = np.array([80, 255, 255])
+    upper_hsv = np.array([70, 255, 255])
     masked_frame, mask = apply_mask(frame, lower_hsv, upper_hsv)
 
     # Preprocess the masked image
@@ -129,7 +129,7 @@ def process_frame(frame):
 
         # Apply masking with specified HSV values on the zoomed warped image
         lower_hsv_warped = np.array([0, 0, 0])
-        upper_hsv_warped = np.array([90, 130, 255])
+        upper_hsv_warped = np.array([70, 130, 255])
         masked_warped, mask_warped = apply_mask(
             zoomed_warped, lower_hsv_warped, upper_hsv_warped)
 

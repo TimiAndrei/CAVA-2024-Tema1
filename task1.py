@@ -34,14 +34,14 @@ def compare_and_extract_pieces(current_frame, previous_frame, output_folder, ima
     if max_diff_cell:
         x_start, y_start, x_end, y_end, row, col = max_diff_cell
         piece = current_frame[y_start:y_end, x_start:x_end]
-        piece_output_path = os.path.join(
-            output_folder, f"piece_{image_name}.jpg")
-        cv.imwrite(piece_output_path, piece)
+        # piece_output_path = os.path.join(
+        #     output_folder, f"piece_{image_name}.jpg")
+        # cv.imwrite(piece_output_path, piece)
         cropped_piece = get_centered_crop(
             piece, detect_bounding_box(piece), size=(120, 120))
-        cropped_piece_output_path = os.path.join(
-            output_folder, f"piece_{image_name}_cropped.jpg")
-        cv.imwrite(cropped_piece_output_path, cropped_piece)
+        # cropped_piece_output_path = os.path.join(
+        #     output_folder, f"piece_{image_name}_cropped.jpg")
+        # cv.imwrite(cropped_piece_output_path, cropped_piece)
 
         # Determine the grid position
         col_letter = chr(ord('A') + col)
@@ -61,7 +61,7 @@ def compare_and_extract_pieces(current_frame, previous_frame, output_folder, ima
         #     print(f"Template: {match}, Score: {score}")
         # Write the position and classification to a text file
         text_output_path = os.path.join(
-            output_folder, f"piece_{image_name}.txt")
+            output_folder, f"{image_name}.txt")
         with open(text_output_path, 'w') as f:
             f.write(f"{position} {best_match_filename}")
 
@@ -177,8 +177,8 @@ def generate_templates():
 
 
 def generate_output():
-    input_folder = "antrenare"
-    output_folder = "new_try3"
+    input_folder = "evaluare/fake_test"
+    output_folder = "evaluare/fisiere_solutie/464_Andrei_Timotei/"
     os.makedirs(output_folder, exist_ok=True)
 
     # Load and process the empty board
