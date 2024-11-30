@@ -4,82 +4,8 @@ import os
 import cv2 as cv
 import numpy as np
 from classifier import detect_bounding_box, get_centered_crop, load_templates, process_and_classify
-from templates import save_median_templates
-from utils import apply_mask, detect_edges, find_largest_contour, get_perspective_transform, find_squares, find_corners, zoom_image
-
-
-def process_frame(frame):
-    width, height = 2030, 2030  # 14x14 grid of 145x145 cells
-
-    # Apply masking
-    lower_hsv = np.array([0, 0, 0])
-    upper_hsv = np.array([95, 255, 255])
-    masked_frame, mask = apply_mask(frame, lower_hsv, upper_hsv)
-
-    # Preprocess the masked image
-    edges = detect_edges(masked_frame)
-
-    max_contour = find_largest_contour(edges)
-    if max_contour is None:
-        print("No contours found.")
-        return None
-
-    # # Draw the largest contour on the original image for debugging
-    # contour_image = frame.copy()
-    # cv.drawContours(contour_image, [max_contour], -1, (0, 255, 0), 30)
-    # contour_image = cv.resize(contour_image, (640, 480))
-    # cv.imshow("Contour", contour_image)
-    # cv.waitKey(0)
-
-    warped = get_perspective_transform(frame, max_contour, width, height)
-    if warped is not None:
-        # # Display the warped image for debugging
-        # resized_warped = cv.resize(warped, (640, 480))
-        # cv.imshow("Warped", resized_warped)
-        # cv.waitKey(0)
-
-        # Zoom the warped image by 20%
-        zoomed_warped = zoom_image(warped, 1.3)
-
-        # Apply masking with specified HSV values on the zoomed warped image
-        lower_hsv_warped = np.array([0, 0, 0])
-        upper_hsv_warped = np.array([90, 130, 255])
-        masked_warped, mask_warped = apply_mask(
-            zoomed_warped, lower_hsv_warped, upper_hsv_warped)
-
-        # Find squares in the mask of the zoomed warped image
-        squares = find_squares(mask_warped)
-
-        if squares:
-            # Find corners of the largest square
-            top_left, top_right, bottom_left, bottom_right = find_corners(
-                squares)
-
-            # Define the new contour for the further warped image
-            new_contour = np.array([
-                [top_left[0], top_left[1]],
-                [top_right[0] + top_right[2], top_right[1]],
-                [bottom_right[0] + bottom_right[2],
-                    bottom_right[1] + bottom_right[3]],
-                [bottom_left[0], bottom_left[1] + bottom_left[3]]
-            ], dtype="float32")
-
-            # Get perspective transform and warp the image again
-            further_warped = get_perspective_transform(
-                zoomed_warped, new_contour, width, height)
-
-            if further_warped is not None:
-                return further_warped
-            else:
-                print(
-                    "Could not find a valid perspective transform for the warped image.")
-                return None
-        else:
-            print("No squares found in the mask of the zoomed warped image.")
-            return None
-    else:
-        print("Could not find a valid perspective transform.")
-        return None
+from templates import save_median_templates, get_auxiliary_templates
+from utils import process_frame
 
 
 def compare_and_extract_pieces(current_frame, previous_frame, output_folder, image_name, templates):
@@ -130,9 +56,9 @@ def compare_and_extract_pieces(current_frame, previous_frame, output_folder, ima
         else:
             best_match_filename = "unknown"
 
-        # Optionally, you can print or log all matches and scores
-        for match, score in matches_and_scores:
-            print(f"Template: {match}, Score: {score}")
+        # Log all matches and scores
+        # for match, score in matches_and_scores:
+        #     print(f"Template: {match}, Score: {score}")
         # Write the position and classification to a text file
         text_output_path = os.path.join(
             output_folder, f"piece_{image_name}.txt")
@@ -245,6 +171,8 @@ def generate_templates():
         for classification, pieces in pieces_by_classification.items():
             all_pieces_by_classification[classification].extend(pieces)
 
+    get_auxiliary_templates(all_pieces_by_classification)
+
     save_median_templates(all_pieces_by_classification, output_folder)
 
 
@@ -256,7 +184,6 @@ def generate_output():
     # Load and process the empty board
     empty_board = cv.imread("imagini_auxiliare/01.jpg")
     empty_board_warped = process_frame(empty_board)
-    cv.imwrite("empty_board_warped.jpg", empty_board_warped)
 
     previous_frame = empty_board_warped
     image_paths = glob.glob(os.path.join(input_folder, "*.jpg"))
