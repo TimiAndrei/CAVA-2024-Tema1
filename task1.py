@@ -43,28 +43,59 @@ def get_position_indices(position):
 
 def calculate_score(piece, position, board):
     row, col = get_position_indices(position)
-    score = piece  # Initial score is the value of the piece
+    score = 0
 
     # Check for special tiles
     position_str = f"{row + 1}{chr(col + ord('A'))}"
+    multiplier = 1
     if position_str in special_tiles["3x"]:
-        score *= 3
+        multiplier = 3
     elif position_str in special_tiles["2x"]:
-        score *= 2
+        multiplier = 2
 
-    # Check for equations
-    equations = []
-    if row > 0 and board[row - 1, col] != 0:
-        equations.append((board[row - 1, col], piece))
-    if row < board_size - 1 and board[row + 1, col] != 0:
-        equations.append((piece, board[row + 1, col]))
-    if col > 0 and board[row, col - 1] != 0:
-        equations.append((board[row, col - 1], piece))
-    if col < board_size - 1 and board[row, col + 1] != 0:
-        equations.append((piece, board[row, col + 1]))
+    # Define the directions to check
+    directions = [
+        (-2, 0), (2, 0),  # Vertical
+        (0, -2), (0, 2),  # Horizontal
+        (-2, -2), (2, 2),  # Diagonal \
+        (-2, 2), (2, -2)  # Diagonal /
+    ]
 
-    for eq in equations:
-        score += eq[0] + eq[1]  # Add the score for each equation
+    direction_names = [
+        "Vertical", "Vertical",
+        "Horizontal", "Horizontal",
+        "Diagonal \\", "Diagonal \\",
+        "Diagonal /", "Diagonal /"
+    ]
+
+    # Check for valid equations
+    for (dr, dc), direction_name in zip(directions, direction_names):
+        r1, c1 = row + dr, col + dc
+        r2, c2 = row + dr // 2, col + dc // 2
+
+        if 0 <= r1 < board_size and 0 <= c1 < board_size and 0 <= r2 < board_size and 0 <= c2 < board_size:
+            if board[r1, c1] != 0 and board[r2, c2] != 0:
+                if board[r1, c1] + board[r2, c2] == piece:
+                    score += piece
+                    print(
+                        f"Equation found: {board[r1, c1]} + {board[r2, c2]} = {piece} at {position_str} ({direction_name})")
+                elif abs(board[r1, c1] - board[r2, c2]) == piece:
+                    score += piece
+                    print(
+                        f"Equation found: |{board[r1, c1]} - {board[r2, c2]}| = {piece} at {position_str} ({direction_name})")
+                elif board[r2, c2] != 0 and board[r1, c1] // board[r2, c2] == piece:
+                    score += piece
+                    print(
+                        f"Equation found: {board[r1, c1]} // {board[r2, c2]} = {piece} at {position_str} ({direction_name})")
+                elif board[r1, c1] * board[r2, c2] == piece:
+                    score += piece
+                    print(
+                        f"Equation found: {board[r1, c1]} * {board[r2, c2]} = {piece} at {position_str} ({direction_name})")
+
+    # Apply the multiplier for special tiles
+    score *= multiplier
+    if multiplier > 1:
+        print(f"Multiplier applied: {multiplier}x at {position_str}")
 
     return score
 
@@ -159,6 +190,7 @@ def generate_output():
     current_turn = 1
     current_player = None
     cumulative_score = 0
+    starting_turn = 1
 
     for frame_count, image_path in enumerate(image_paths):
         if frame_count % 50 == 0:
@@ -176,33 +208,44 @@ def generate_output():
                 current_turn = 1
                 current_player = None
                 cumulative_score = 0
+                starting_turn = 1
 
             # Parse the turns file for the new game
             turns_file_path = os.path.join(
                 input_folder, f"{game_number}_turns.txt")
             turns = parse_turns(turns_file_path)
+            print(turns)
+
+            # Initialize the first player and starting turn
+            current_player, starting_turn = turns[0]
 
         previous_frame, score = process_image(
             image_path, previous_frame, output_folder, templates, board)
 
-        # Update the score for the current player
-        if frame_count < len(turns):
-            player, turn = turns[frame_count % 50]
-            if player != current_player:
-                if current_player is not None:
+        # Determine the current player based on the turns list
+        for player, turn in turns:
+            if current_turn == turn:
+                if current_player is not None and cumulative_score > 0:
+                    # Write the cumulative score for the previous player
                     with open(os.path.join(output_folder, f"{game_number}_scores.txt"), 'a') as f:
                         f.write(
-                            f"{current_player} {current_turn} {cumulative_score}\n")
-                current_player = player
-                current_turn = turn
+                            f"{current_player} {starting_turn} {cumulative_score}\n")
+                # Reset cumulative score and update current player and starting turn
                 cumulative_score = 0
-            cumulative_score += score
-            print(f"Player: {player}, Turn: {turn}, Score: {cumulative_score}")
+                current_player = player
+                starting_turn = turn
+
+        # Update the score for the current player
+        cumulative_score += score
+        print(
+            f"Player: {current_player}, Turn: {current_turn}, Score: {cumulative_score}")
+
+        current_turn += 1
 
     # Write the scores to the output file for the last game
     with open(os.path.join(output_folder, f"{game_number}_scores.txt"), 'a') as f:
         if current_player is not None:
-            f.write(f"{current_player} {current_turn} {cumulative_score}\n")
+            f.write(f"{current_player} {starting_turn} {cumulative_score}\n")
 
 
 def main():
