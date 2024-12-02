@@ -7,17 +7,16 @@ from classifier import detect_bounding_box, get_centered_crop, load_templates, p
 from templates import generate_templates
 from utils import process_frame
 
-# Define the special tiles and their positions
+# Special tiles and their positions
 special_tiles = {
     "3x": ["1A", "1G", "1H", "1N", "7A", "7N", "8A", "8N", "14A", "14G", "14H", "14N"],
     "2x": ["2B", "2M", "3C", "3L", "4D", "4K", "5E", "5J", "10E", "10J", "11D", "11K", "12C", "12L", "13B", "13M"],
 }
 
-# Define the board size
 board_size = 14
 
 # Initialize the board with starting numbers
-initial_board = np.zeros((board_size, board_size), dtype=int)
+initial_board = np.full((board_size, board_size), "#", dtype=object)
 initial_board[6, 6] = 1  # 7G
 initial_board[6, 7] = 2  # 7H
 initial_board[7, 6] = 3  # 8G
@@ -51,86 +50,58 @@ def calculate_score(piece, position, board):
     elif position_str in special_tiles["2x"]:
         multiplier = 2
 
+    # Helper function to check equations
+    def check_equation(r1, c1, r2, c2):
+        nonlocal score
+        if 0 <= r1 < board_size and 0 <= c1 < board_size and 0 <= r2 < board_size and 0 <= c2 < board_size:
+            if board[r1, c1] == "#" or board[r2, c2] == "#":
+                return  # Ignore empty positions
+            if board[r1, c1] + board[r2, c2] == piece:
+                print(
+                    f"Found equation: {board[r1, c1]} + {board[r2, c2]} == {piece}")
+                score += piece
+                print("Score:", score)
+            elif abs(board[r1, c1] - board[r2, c2]) == piece:
+                print(
+                    f"Found equation: |{board[r1, c1]} - {board[r2, c2]}| == {piece}")
+                score += piece
+                print("Score:", score)
+            elif board[r2, c2] != 0 and board[r1, c1] // board[r2, c2] == piece:
+                print(
+                    f"Found equation: {board[r1, c1]} // {board[r2, c2]} == {piece}")
+                score += piece
+                print("Score:", score)
+            elif board[r1, c1] != 0 and board[r2, c2] // board[r1, c1] == piece:
+                print(
+                    f"Found equation: {board[r2, c2]} // {board[r1, c1]} == {piece}")
+                score += piece
+                print("Score:", score)
+            elif board[r1, c1] * board[r2, c2] == piece:
+                print(
+                    f"Found equation: {board[r1, c1]} * {board[r2, c2]} == {piece}")
+                score += piece
+                print("Score:", score)
+
     # Check for valid equations
     # Vertical
-    if row >= 2 and board[row - 2, col] != 0 and board[row - 1, col] != 0:
-        if board[row - 2, col] + board[row - 1, col] == piece:
-            score += piece
-            print(
-                f"Equation found: {board[row - 2, col]} + {board[row - 1, col]} = {piece} at {position_str} (Vertical)")
-        elif abs(board[row - 2, col] - board[row - 1, col]) == piece:
-            score += piece
-            print(
-                f"Equation found: |{board[row - 2, col]} - {board[row - 1, col]}| = {piece} at {position_str} (Vertical)")
-        elif board[row - 1, col] != 0 and board[row - 2, col] // board[row - 1, col] == piece:
-            score += piece
-            print(
-                f"Equation found: {board[row - 2, col]} // {board[row - 1, col]} = {piece} at {position_str} (Vertical)")
-        elif board[row - 2, col] * board[row - 1, col] == piece:
-            score += piece
-            print(
-                f"Equation found: {board[row - 2, col]} * {board[row - 1, col]} = {piece} at {position_str} (Vertical)")
-
-    if row <= board_size - 3 and board[row + 2, col] != 0 and board[row + 1, col] != 0:
-        if board[row + 2, col] + board[row + 1, col] == piece:
-            score += piece
-            print(
-                f"Equation found: {board[row + 2, col]} + {board[row + 1, col]} = {piece} at {position_str} (Vertical)")
-        elif abs(board[row + 2, col] - board[row + 1, col]) == piece:
-            score += piece
-            print(
-                f"Equation found: |{board[row + 2, col]} - {board[row + 1, col]}| = {piece} at {position_str} (Vertical)")
-        elif board[row + 1, col] != 0 and board[row + 2, col] // board[row + 1, col] == piece:
-            score += piece
-            print(
-                f"Equation found: {board[row + 2, col]} // {board[row + 1, col]} = {piece} at {position_str} (Vertical)")
-        elif board[row + 2, col] * board[row + 1, col] == piece:
-            score += piece
-            print(
-                f"Equation found: {board[row + 2, col]} * {board[row + 1, col]} = {piece} at {position_str} (Vertical)")
+    print(f"Checking up:...")
+    check_equation(row - 2, col, row - 1, col)  # Up
+    print(f"Checking down:...")
+    check_equation(row + 2, col, row + 1, col)  # Down
 
     # Horizontal
-    if col >= 2 and board[row, col - 2] != 0 and board[row, col - 1] != 0:
-        if board[row, col - 2] + board[row, col - 1] == piece:
-            score += piece
-            print(
-                f"Equation found: {board[row, col - 2]} + {board[row, col - 1]} = {piece} at {position_str} (Horizontal)")
-        elif abs(board[row, col - 2] - board[row, col - 1]) == piece:
-            score += piece
-            print(
-                f"Equation found: |{board[row, col - 2]} - {board[row, col - 1]}| = {piece} at {position_str} (Horizontal)")
-        elif board[row, col - 1] != 0 and board[row, col - 2] // board[row, col - 1] == piece:
-            score += piece
-            print(
-                f"Equation found: {board[row, col - 2]} // {board[row, col - 1]} = {piece} at {position_str} (Horizontal)")
-        elif board[row, col - 2] * board[row, col - 1] == piece:
-            score += piece
-            print(
-                f"Equation found: {board[row, col - 2]} * {board[row, col - 1]} = {piece} at {position_str} (Horizontal)")
-
-    if col <= board_size - 3 and board[row, col + 2] != 0 and board[row, col + 1] != 0:
-        if board[row, col + 2] + board[row, col + 1] == piece:
-            score += piece
-            print(
-                f"Equation found: {board[row, col + 2]} + {board[row, col + 1]} = {piece} at {position_str} (Horizontal)")
-        elif abs(board[row, col + 2] - board[row, col + 1]) == piece:
-            score += piece
-            print(
-                f"Equation found: |{board[row, col + 2]} - {board[row, col + 1]}| = {piece} at {position_str} (Horizontal)")
-        elif board[row, col + 1] != 0 and board[row, col + 2] // board[row, col + 1] == piece:
-            score += piece
-            print(
-                f"Equation found: {board[row, col + 2]} // {board[row, col + 1]} = {piece} at {position_str} (Horizontal)")
-        elif board[row, col + 2] * board[row, col + 1] == piece:
-            score += piece
-            print(
-                f"Equation found: {board[row, col + 2]} * {board[row, col + 1]} = {piece} at {position_str} (Horizontal)")
+    print(f"Checking left:...")
+    check_equation(row, col - 2, row, col - 1)  # Left
+    print(f"Checking right:...")
+    check_equation(row, col + 2, row, col + 1)  # Right
 
     # Apply the multiplier for special tiles
     score *= multiplier
     if multiplier > 1:
         print(f"Multiplier applied: {multiplier}x at {position_str}")
 
+    print("Final score:", score)
+    print(board)
     return score
 
 
@@ -172,7 +143,7 @@ def compare_and_extract_pieces(current_frame, previous_frame, output_folder, ima
         # Classify the piece
         matches_and_scores = process_and_classify(cropped_piece, templates)
         if matches_and_scores:
-            best_match, best_score = matches_and_scores[0]
+            best_match, _ = matches_and_scores[0]
             best_match_filename = os.path.splitext(best_match)[0]
             piece_value = int(best_match_filename)
         else:
@@ -208,7 +179,7 @@ def process_image(image_path, previous_frame, output_folder, templates, board):
 
 
 def generate_output():
-    input_folder = "evaluare/fake_test"
+    input_folder = "antrenare"
     output_folder = "evaluare/fisiere_solutie/464_Andrei_Timotei/"
     os.makedirs(output_folder, exist_ok=True)
 
@@ -220,34 +191,42 @@ def generate_output():
     templates = load_templates("new_median_templates")
 
     game_number = 1
-    scores = defaultdict(int)  # Initialize scores as a defaultdict of integers
     current_turn = 1
     current_player = None
     cumulative_score = 0
     starting_turn = 1
+    previous_frame = empty_board_warped
+    board = initial_board.copy()
+    first_round_processed = False
+
+    turns_file_path = os.path.join(input_folder, f"{game_number}_turns.txt")
+    turns = parse_turns(turns_file_path)
 
     for frame_count, image_path in enumerate(image_paths):
-        if frame_count % 50 == 0:
-            # Reset the base frame and board every 50 images for a new game
+        if frame_count % 50 == 0 and frame_count > 0:
+            # Write the scores to the output file for the previous game
+            with open(os.path.join(output_folder, f"{game_number}_scores.txt"), 'a') as f:
+                if current_player is not None and first_round_processed:
+                    f.write(
+                        f"{current_player} {starting_turn} {cumulative_score}\n")
+            game_number += 1
+            current_turn = 1
+            current_player = None
+            cumulative_score = 0
+            starting_turn = 1
+            first_round_processed = False
+
+            # Reset the base frame and board for the new game
             previous_frame = empty_board_warped
             board = initial_board.copy()
-
-            # Write the scores to the output file for the previous game
-            if frame_count > 0:
-                with open(os.path.join(output_folder, f"{game_number}_scores.txt"), 'w') as f:
-                    for player, turn, score in scores:
-                        f.write(f"{player} {turn} {score}\n")
-                game_number += 1
-                scores = defaultdict(int)  # Reset scores for the new game
-                current_turn = 1
-                current_player = None
-                cumulative_score = 0
-                starting_turn = 1
 
             # Parse the turns file for the new game
             turns_file_path = os.path.join(
                 input_folder, f"{game_number}_turns.txt")
+            if not os.path.exists(turns_file_path):
+                break
             turns = parse_turns(turns_file_path)
+            print(turns)
 
             # Initialize the first player and starting turn
             current_player, starting_turn = turns[0]
@@ -258,7 +237,7 @@ def generate_output():
         # Determine the current player based on the turns list
         for player, turn in turns:
             if current_turn == turn:
-                if current_player is not None and cumulative_score > 0:
+                if current_player is not None and first_round_processed:
                     # Write the cumulative score for the previous player
                     with open(os.path.join(output_folder, f"{game_number}_scores.txt"), 'a') as f:
                         f.write(
@@ -267,6 +246,7 @@ def generate_output():
                 cumulative_score = 0
                 current_player = player
                 starting_turn = turn
+                first_round_processed = True
 
         # Update the score for the current player
         cumulative_score += score
@@ -275,9 +255,9 @@ def generate_output():
 
         current_turn += 1
 
-    # Write the scores to the output file for the last game
+    # Write the scores for the last game
     with open(os.path.join(output_folder, f"{game_number}_scores.txt"), 'a') as f:
-        if current_player is not None:
+        if current_player is not None and first_round_processed:
             f.write(f"{current_player} {starting_turn} {cumulative_score}\n")
 
 
