@@ -10,7 +10,7 @@ from utils import process_frame
 # Define the special tiles and their positions
 special_tiles = {
     "3x": ["1A", "1G", "1H", "1N", "7A", "7N", "8A", "8N", "14A", "14G", "14H", "14N"],
-    "2x": ["2B", "2M", "3C", "2L", "4D", "4K", "5E", "5J", "10E", "10J", "11D", "11K", "12C", "12L", "13B", "13M"],
+    "2x": ["2B", "2M", "3C", "3L", "4D", "4K", "5E", "5J", "10E", "10J", "11D", "11K", "12C", "12L", "13B", "13M"],
 }
 
 # Define the board size
@@ -30,8 +30,6 @@ def parse_turns(file_path):
         for line in f:
             player, turn = line.strip().split()
             turns.append((player, int(turn)))
-    print(f"Loaded {len(turns)} turns from {file_path}")
-    print(turns)
     return turns
 
 
@@ -53,44 +51,80 @@ def calculate_score(piece, position, board):
     elif position_str in special_tiles["2x"]:
         multiplier = 2
 
-    # Define the directions to check
-    directions = [
-        (-2, 0), (2, 0),  # Vertical
-        (0, -2), (0, 2),  # Horizontal
-        (-2, -2), (2, 2),  # Diagonal \
-        (-2, 2), (2, -2)  # Diagonal /
-    ]
-
-    direction_names = [
-        "Vertical", "Vertical",
-        "Horizontal", "Horizontal",
-        "Diagonal \\", "Diagonal \\",
-        "Diagonal /", "Diagonal /"
-    ]
-
     # Check for valid equations
-    for (dr, dc), direction_name in zip(directions, direction_names):
-        r1, c1 = row + dr, col + dc
-        r2, c2 = row + dr // 2, col + dc // 2
+    # Vertical
+    if row >= 2 and board[row - 2, col] != 0 and board[row - 1, col] != 0:
+        if board[row - 2, col] + board[row - 1, col] == piece:
+            score += piece
+            print(
+                f"Equation found: {board[row - 2, col]} + {board[row - 1, col]} = {piece} at {position_str} (Vertical)")
+        elif abs(board[row - 2, col] - board[row - 1, col]) == piece:
+            score += piece
+            print(
+                f"Equation found: |{board[row - 2, col]} - {board[row - 1, col]}| = {piece} at {position_str} (Vertical)")
+        elif board[row - 1, col] != 0 and board[row - 2, col] // board[row - 1, col] == piece:
+            score += piece
+            print(
+                f"Equation found: {board[row - 2, col]} // {board[row - 1, col]} = {piece} at {position_str} (Vertical)")
+        elif board[row - 2, col] * board[row - 1, col] == piece:
+            score += piece
+            print(
+                f"Equation found: {board[row - 2, col]} * {board[row - 1, col]} = {piece} at {position_str} (Vertical)")
 
-        if 0 <= r1 < board_size and 0 <= c1 < board_size and 0 <= r2 < board_size and 0 <= c2 < board_size:
-            if board[r1, c1] != 0 and board[r2, c2] != 0:
-                if board[r1, c1] + board[r2, c2] == piece:
-                    score += piece
-                    print(
-                        f"Equation found: {board[r1, c1]} + {board[r2, c2]} = {piece} at {position_str} ({direction_name})")
-                elif abs(board[r1, c1] - board[r2, c2]) == piece:
-                    score += piece
-                    print(
-                        f"Equation found: |{board[r1, c1]} - {board[r2, c2]}| = {piece} at {position_str} ({direction_name})")
-                elif board[r2, c2] != 0 and board[r1, c1] // board[r2, c2] == piece:
-                    score += piece
-                    print(
-                        f"Equation found: {board[r1, c1]} // {board[r2, c2]} = {piece} at {position_str} ({direction_name})")
-                elif board[r1, c1] * board[r2, c2] == piece:
-                    score += piece
-                    print(
-                        f"Equation found: {board[r1, c1]} * {board[r2, c2]} = {piece} at {position_str} ({direction_name})")
+    if row <= board_size - 3 and board[row + 2, col] != 0 and board[row + 1, col] != 0:
+        if board[row + 2, col] + board[row + 1, col] == piece:
+            score += piece
+            print(
+                f"Equation found: {board[row + 2, col]} + {board[row + 1, col]} = {piece} at {position_str} (Vertical)")
+        elif abs(board[row + 2, col] - board[row + 1, col]) == piece:
+            score += piece
+            print(
+                f"Equation found: |{board[row + 2, col]} - {board[row + 1, col]}| = {piece} at {position_str} (Vertical)")
+        elif board[row + 1, col] != 0 and board[row + 2, col] // board[row + 1, col] == piece:
+            score += piece
+            print(
+                f"Equation found: {board[row + 2, col]} // {board[row + 1, col]} = {piece} at {position_str} (Vertical)")
+        elif board[row + 2, col] * board[row + 1, col] == piece:
+            score += piece
+            print(
+                f"Equation found: {board[row + 2, col]} * {board[row + 1, col]} = {piece} at {position_str} (Vertical)")
+
+    # Horizontal
+    if col >= 2 and board[row, col - 2] != 0 and board[row, col - 1] != 0:
+        if board[row, col - 2] + board[row, col - 1] == piece:
+            score += piece
+            print(
+                f"Equation found: {board[row, col - 2]} + {board[row, col - 1]} = {piece} at {position_str} (Horizontal)")
+        elif abs(board[row, col - 2] - board[row, col - 1]) == piece:
+            score += piece
+            print(
+                f"Equation found: |{board[row, col - 2]} - {board[row, col - 1]}| = {piece} at {position_str} (Horizontal)")
+        elif board[row, col - 1] != 0 and board[row, col - 2] // board[row, col - 1] == piece:
+            score += piece
+            print(
+                f"Equation found: {board[row, col - 2]} // {board[row, col - 1]} = {piece} at {position_str} (Horizontal)")
+        elif board[row, col - 2] * board[row, col - 1] == piece:
+            score += piece
+            print(
+                f"Equation found: {board[row, col - 2]} * {board[row, col - 1]} = {piece} at {position_str} (Horizontal)")
+
+    if col <= board_size - 3 and board[row, col + 2] != 0 and board[row, col + 1] != 0:
+        if board[row, col + 2] + board[row, col + 1] == piece:
+            score += piece
+            print(
+                f"Equation found: {board[row, col + 2]} + {board[row, col + 1]} = {piece} at {position_str} (Horizontal)")
+        elif abs(board[row, col + 2] - board[row, col + 1]) == piece:
+            score += piece
+            print(
+                f"Equation found: |{board[row, col + 2]} - {board[row, col + 1]}| = {piece} at {position_str} (Horizontal)")
+        elif board[row, col + 1] != 0 and board[row, col + 2] // board[row, col + 1] == piece:
+            score += piece
+            print(
+                f"Equation found: {board[row, col + 2]} // {board[row, col + 1]} = {piece} at {position_str} (Horizontal)")
+        elif board[row, col + 2] * board[row, col + 1] == piece:
+            score += piece
+            print(
+                f"Equation found: {board[row, col + 2]} * {board[row, col + 1]} = {piece} at {position_str} (Horizontal)")
 
     # Apply the multiplier for special tiles
     score *= multiplier
@@ -214,7 +248,6 @@ def generate_output():
             turns_file_path = os.path.join(
                 input_folder, f"{game_number}_turns.txt")
             turns = parse_turns(turns_file_path)
-            print(turns)
 
             # Initialize the first player and starting turn
             current_player, starting_turn = turns[0]
