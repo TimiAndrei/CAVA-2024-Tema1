@@ -6,7 +6,7 @@ from classifier import detect_bounding_box, get_centered_crop, load_templates, p
 from templates import generate_templates
 from utils import process_frame
 
-# Special tiles and their positions
+# Special tiles positions
 special_tiles = {
     "3x": ["1A", "1G", "1H", "1N", "7A", "7N", "8A", "8N", "14A", "14G", "14H", "14N"],
     "2x": ["2B", "2M", "3C", "3L", "4D", "4K", "5E", "5J", "10E", "10J", "11D", "11K", "12C", "12L", "13B", "13M"],
@@ -18,7 +18,6 @@ special_tiles = {
 
 board_size = 14
 
-# Initialize the board with starting numbers
 initial_board = np.full((board_size, board_size), "#", dtype=object)
 initial_board[6, 6] = 1  # 7G
 initial_board[6, 7] = 2  # 7H
@@ -58,10 +57,7 @@ def calculate_score(piece, position, board):
         nonlocal score
         if 0 <= r1 < board_size and 0 <= c1 < board_size and 0 <= r2 < board_size and 0 <= c2 < board_size:
             if board[r1, c1] != "#" and board[r2, c2] != "#" and board[r1, c1] + board[r2, c2] == piece:
-                print(
-                    f"Found addition equation: {board[r1, c1]} + {board[r2, c2]} == {piece} at positions ({r1}, {c1}) and ({r2}, {c2})")
                 score += piece
-                print(f"Score after addition equation: {score}")
                 return True
         return False
 
@@ -70,10 +66,7 @@ def calculate_score(piece, position, board):
         nonlocal score
         if 0 <= r1 < board_size and 0 <= c1 < board_size and 0 <= r2 < board_size and 0 <= c2 < board_size:
             if board[r1, c1] != "#" and board[r2, c2] != "#" and abs(board[r1, c1] - board[r2, c2]) == piece:
-                print(
-                    f"Found subtraction equation: |{board[r1, c1]} - {board[r2, c2]}| == {piece} at positions ({r1}, {c1}) and ({r2}, {c2})")
                 score += piece
-                print(f"Score after subtraction equation: {score}")
                 return True
         return False
 
@@ -83,16 +76,10 @@ def calculate_score(piece, position, board):
         if 0 <= r1 < board_size and 0 <= c1 < board_size and 0 <= r2 < board_size and 0 <= c2 < board_size:
             if board[r1, c1] != "#" and board[r2, c2] != "#":
                 if board[r2, c2] != 0 and board[r1, c1] / board[r2, c2] == piece:
-                    print(
-                        f"Found division equation: {board[r1, c1]} / {board[r2, c2]} == {piece} at positions ({r1}, {c1}) and ({r2}, {c2})")
                     score += piece
-                    print(f"Score after division equation: {score}")
                     return True
                 elif board[r1, c1] != 0 and board[r2, c2] / board[r1, c1] == piece:
-                    print(
-                        f"Found division equation: {board[r2, c2]} / {board[r1, c1]} == {piece} at positions ({r1}, {c1}) and ({r2}, {c2})")
                     score += piece
-                    print(f"Score after division equation: {score}")
                     return True
         return False
 
@@ -101,10 +88,7 @@ def calculate_score(piece, position, board):
         nonlocal score
         if 0 <= r1 < board_size and 0 <= c1 < board_size and 0 <= r2 < board_size and 0 <= c2 < board_size:
             if board[r1, c1] != "#" and board[r2, c2] != "#" and board[r1, c1] * board[r2, c2] == piece:
-                print(
-                    f"Found multiplication equation: {board[r1, c1]} * {board[r2, c2]} == {piece} at positions ({r1}, {c1}) and ({r2}, {c2})")
                 score += piece
-                print(f"Score after multiplication equation: {score}")
                 return True
         return False
 
@@ -140,10 +124,6 @@ def calculate_score(piece, position, board):
 
     # Apply the multiplier for special tiles
     score *= multiplier
-    if multiplier > 1:
-        print(f"Multiplier applied: {multiplier}x at {position_str}")
-
-    print("Final score:", score)
     return score
 
 
@@ -221,16 +201,15 @@ def process_image(image_path, previous_frame, output_folder, templates, board):
 
 
 def generate_output():
-    input_folder = "antrenare"
+    input_folder = "evaluare/fake_test"
     output_folder = "evaluare/fisiere_solutie/464_Andrei_Timotei/"
     os.makedirs(output_folder, exist_ok=True)
 
-    # Load and process the empty board
     empty_board = cv.imread("imagini_auxiliare/01.jpg")
     empty_board_warped = process_frame(empty_board)
 
     image_paths = glob.glob(os.path.join(input_folder, "*.jpg"))
-    templates = load_templates("new_median_templates")
+    templates = load_templates("templates")
 
     game_number = 1
     current_turn = 1
@@ -268,7 +247,6 @@ def generate_output():
             if not os.path.exists(turns_file_path):
                 break
             turns = parse_turns(turns_file_path)
-            print(turns)
 
             # Initialize the first player and starting turn
             current_player, starting_turn = turns[0]
@@ -280,7 +258,6 @@ def generate_output():
         for player, turn in turns:
             if current_turn == turn:
                 if current_player is not None and first_round_processed:
-                    # Write the cumulative score for the previous player
                     with open(os.path.join(output_folder, f"{game_number}_scores.txt"), 'a') as f:
                         f.write(
                             f"{current_player} {starting_turn} {cumulative_score}\n")
@@ -292,9 +269,6 @@ def generate_output():
 
         # Update the score for the current player
         cumulative_score += score
-        print(
-            f"Player: {current_player}, Turn: {current_turn}, Score: {cumulative_score}")
-
         current_turn += 1
 
     # Write the scores for the last game
@@ -304,7 +278,7 @@ def generate_output():
 
 
 def main():
-    # generate_templates()
+    generate_templates()
     generate_output()
 
 

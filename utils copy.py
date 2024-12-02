@@ -107,21 +107,9 @@ def process_frame(frame):
         print("No contours found.")
         return None
 
-    # # Draw the largest contour on the original image for debugging
-    # contour_image = frame.copy()
-    # cv.drawContours(contour_image, [max_contour], -1, (0, 255, 0), 30)
-    # contour_image = cv.resize(contour_image, (640, 480))
-    # cv.imshow("Contour", contour_image)
-    # cv.waitKey(0)
-
     warped = get_perspective_transform(frame, max_contour, width, height)
     if warped is not None:
-        # # Display the warped image for debugging
-        # resized_warped = cv.resize(warped, (640, 480))
-        # cv.imshow("Warped", resized_warped)
-        # cv.waitKey(0)
-
-        # Zoom the warped image by 20%
+        # Zoom the warped image by 30%
         zoomed_warped = zoom_image(warped, 1.3)
 
         # Apply masking with specified HSV values on the zoomed warped image
