@@ -11,6 +11,10 @@ from utils import process_frame
 special_tiles = {
     "3x": ["1A", "1G", "1H", "1N", "7A", "7N", "8A", "8N", "14A", "14G", "14H", "14N"],
     "2x": ["2B", "2M", "3C", "3L", "4D", "4K", "5E", "5J", "10E", "10J", "11D", "11K", "12C", "12L", "13B", "13M"],
+    "division": ["2E", "2J", "5B", "5M", "10A", "10M", "13E", "13J"],
+    "subtraction": ["3F", "3I", "6C", "6L", "9C", "9L", "12F", "12I"],
+    "addition": ["4G", "5H", "7E", "7K", "8D", "8J", "10G", "11H"],
+    "multiplication": ["4H", "5G", "7D", "7J", "8E", "8K", "10H", "11G"]
 }
 
 board_size = 14
@@ -50,50 +54,90 @@ def calculate_score(piece, position, board):
     elif position_str in special_tiles["2x"]:
         multiplier = 2
 
-    # Helper function to check equations
-    def check_equation(r1, c1, r2, c2):
+    # Helper function to check addition equations
+    def check_addition(r1, c1, r2, c2):
         nonlocal score
         if 0 <= r1 < board_size and 0 <= c1 < board_size and 0 <= r2 < board_size and 0 <= c2 < board_size:
-            if board[r1, c1] == "#" or board[r2, c2] == "#":
-                return  # Ignore empty positions
-            if board[r1, c1] + board[r2, c2] == piece:
+            if board[r1, c1] != "#" and board[r2, c2] != "#" and board[r1, c1] + board[r2, c2] == piece:
                 print(
-                    f"Found equation: {board[r1, c1]} + {board[r2, c2]} == {piece}")
+                    f"Found addition equation: {board[r1, c1]} + {board[r2, c2]} == {piece} at positions ({r1}, {c1}) and ({r2}, {c2})")
                 score += piece
-                print("Score:", score)
-            elif abs(board[r1, c1] - board[r2, c2]) == piece:
+                print(f"Score after addition equation: {score}")
+                return True
+        return False
+
+    # Helper function to check subtraction equations
+    def check_subtraction(r1, c1, r2, c2):
+        nonlocal score
+        if 0 <= r1 < board_size and 0 <= c1 < board_size and 0 <= r2 < board_size and 0 <= c2 < board_size:
+            if board[r1, c1] != "#" and board[r2, c2] != "#" and abs(board[r1, c1] - board[r2, c2]) == piece:
                 print(
-                    f"Found equation: |{board[r1, c1]} - {board[r2, c2]}| == {piece}")
+                    f"Found subtraction equation: |{board[r1, c1]} - {board[r2, c2]}| == {piece} at positions ({r1}, {c1}) and ({r2}, {c2})")
                 score += piece
-                print("Score:", score)
-            elif board[r2, c2] != 0 and board[r1, c1] // board[r2, c2] == piece:
+                print(f"Score after subtraction equation: {score}")
+                return True
+        return False
+
+    # Helper function to check division equations
+    def check_division(r1, c1, r2, c2):
+        nonlocal score
+        if 0 <= r1 < board_size and 0 <= c1 < board_size and 0 <= r2 < board_size and 0 <= c2 < board_size:
+            if board[r1, c1] != "#" and board[r2, c2] != "#":
+                if board[r2, c2] != 0 and board[r1, c1] / board[r2, c2] == piece:
+                    print(
+                        f"Found division equation: {board[r1, c1]} / {board[r2, c2]} == {piece} at positions ({r1}, {c1}) and ({r2}, {c2})")
+                    score += piece
+                    print(f"Score after division equation: {score}")
+                    return True
+                elif board[r1, c1] != 0 and board[r2, c2] / board[r1, c1] == piece:
+                    print(
+                        f"Found division equation: {board[r2, c2]} / {board[r1, c1]} == {piece} at positions ({r1}, {c1}) and ({r2}, {c2})")
+                    score += piece
+                    print(f"Score after division equation: {score}")
+                    return True
+        return False
+
+    # Helper function to check multiplication equations
+    def check_multiplication(r1, c1, r2, c2):
+        nonlocal score
+        if 0 <= r1 < board_size and 0 <= c1 < board_size and 0 <= r2 < board_size and 0 <= c2 < board_size:
+            if board[r1, c1] != "#" and board[r2, c2] != "#" and board[r1, c1] * board[r2, c2] == piece:
                 print(
-                    f"Found equation: {board[r1, c1]} // {board[r2, c2]} == {piece}")
+                    f"Found multiplication equation: {board[r1, c1]} * {board[r2, c2]} == {piece} at positions ({r1}, {c1}) and ({r2}, {c2})")
                 score += piece
-                print("Score:", score)
-            elif board[r1, c1] != 0 and board[r2, c2] // board[r1, c1] == piece:
-                print(
-                    f"Found equation: {board[r2, c2]} // {board[r1, c1]} == {piece}")
-                score += piece
-                print("Score:", score)
-            elif board[r1, c1] * board[r2, c2] == piece:
-                print(
-                    f"Found equation: {board[r1, c1]} * {board[r2, c2]} == {piece}")
-                score += piece
-                print("Score:", score)
+                print(f"Score after multiplication equation: {score}")
+                return True
+        return False
+
+    # Check equations in all directions
+    def check_all_directions():
+        directions = [
+            (row - 2, col, row - 1, col),  # Up
+            (row + 2, col, row + 1, col),  # Down
+            (row, col - 2, row, col - 1),  # Left
+            (row, col + 2, row, col + 1)   # Right
+        ]
+        for r1, c1, r2, c2 in directions:
+            if position_str in special_tiles["addition"] and check_addition(r1, c1, r2, c2):
+                continue
+            if position_str in special_tiles["subtraction"] and check_subtraction(r1, c1, r2, c2):
+                continue
+            if position_str in special_tiles["division"] and check_division(r1, c1, r2, c2):
+                continue
+            if position_str in special_tiles["multiplication"] and check_multiplication(r1, c1, r2, c2):
+                continue
+            if position_str not in special_tiles["addition"] and position_str not in special_tiles["subtraction"] and position_str not in special_tiles["division"] and position_str not in special_tiles["multiplication"]:
+                if check_addition(r1, c1, r2, c2):
+                    continue
+                if check_subtraction(r1, c1, r2, c2):
+                    continue
+                if check_division(r1, c1, r2, c2):
+                    continue
+                if check_multiplication(r1, c1, r2, c2):
+                    continue
 
     # Check for valid equations
-    # Vertical
-    print(f"Checking up:...")
-    check_equation(row - 2, col, row - 1, col)  # Up
-    print(f"Checking down:...")
-    check_equation(row + 2, col, row + 1, col)  # Down
-
-    # Horizontal
-    print(f"Checking left:...")
-    check_equation(row, col - 2, row, col - 1)  # Left
-    print(f"Checking right:...")
-    check_equation(row, col + 2, row, col + 1)  # Right
+    check_all_directions()
 
     # Apply the multiplier for special tiles
     score *= multiplier
@@ -101,7 +145,6 @@ def calculate_score(piece, position, board):
         print(f"Multiplier applied: {multiplier}x at {position_str}")
 
     print("Final score:", score)
-    print(board)
     return score
 
 
@@ -179,7 +222,7 @@ def process_image(image_path, previous_frame, output_folder, templates, board):
 
 
 def generate_output():
-    input_folder = "antrenare"
+    input_folder = "evaluare/fake_test"
     output_folder = "evaluare/fisiere_solutie/464_Andrei_Timotei/"
     os.makedirs(output_folder, exist_ok=True)
 
@@ -258,7 +301,7 @@ def generate_output():
     # Write the scores for the last game
     with open(os.path.join(output_folder, f"{game_number}_scores.txt"), 'a') as f:
         if current_player is not None and first_round_processed:
-            f.write(f"{current_player} {starting_turn} {cumulative_score}\n")
+            f.write(f"{current_player} {starting_turn} {cumulative_score}")
 
 
 def main():
